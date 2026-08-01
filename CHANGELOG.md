@@ -4,6 +4,11 @@ All notable changes to **operator** are documented here.
 
 ## [Unreleased]
 
+### Changed
+- Refactored core utilities for better readability and maintainability.
+- Improved error handling with detailed, descriptive error messages across utils.
+- Enhanced debugging experience with more informative error output.
+
 ## [0.81.0] - 2026-07
 
 Initial release of `operator` — a terminal AI coding agent for development,
