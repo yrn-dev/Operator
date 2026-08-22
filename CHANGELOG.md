@@ -17,3 +17,4 @@ supporting Alem AI + local Ollama as model providers.
 ### Notes
 - Built on the operator-core / operator-ai / operator-tui runtime packages.
 # bounty-fix-ref: https://github.com/yrn-dev/Operator/issues/7486
+# bounty-fix-ref: https://github.com/yrn-dev/Operator/issues/7486
