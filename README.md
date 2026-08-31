@@ -169,6 +169,8 @@ deep_research(query="comparison of neural networks for computer vision 2025")
 | `~/.opr/agent/auth.json` | API keys |
 | `~/.opr/agent/sessions/` | Session history |
 
+Core settings support `enable_notifications` (default `false`). See `examples/core-settings.json`.
+
 ## Requirements
 
 - **Node.js** >= 22.19.0
