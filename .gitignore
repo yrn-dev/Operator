@@ -1,8 +1,8 @@
 # Dependencies
 node_modules/
 
-# Build output
-dist/
+# NOTE: dist/ is tracked on purpose — it is the current built operator
+# (the npm package ships dist, no src in this repo).
 
 # OS
 .DS_Store
@@ -23,8 +23,12 @@ npm-debug.log*
 *.swp
 *.swo
 
-# Configuration (user-specific, per env)
+# Local agent state (auth.json, sessions, memory — user-specific, secrets)
 .opr/
+~/.opr/
+auth.json
+models.json
+tasks.json
 
 # Shrinkwrap (regenerate per env)
 npm-shrinkwrap.json

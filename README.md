@@ -1,182 +1,82 @@
-# operator — Terminal AI Coding Agent
+# operator
 
-Autonomous AI agent for the terminal. Not just for code — also for research, automation, DevOps, data analysis, and content generation.
+[![npm version](https://img.shields.io/npm/v/pzero-operator.svg)](https://www.npmjs.com/package/pzero-operator)
+[![downloads last month](https://img.shields.io/npm/dm/pzero-operator.svg)](https://www.npmjs.com/package/pzero-operator)
 
-Runs locally. Minimum words, maximum action.
-
-## What operator can do
-
-### 💻 Development
-- Write code in any language (Python, JS/TS, Go, Rust, etc.)
-- Read, edit, and patch files
-- Find bugs and suggest fixes
-- Run tests and verify results
-- Git operations (status, diff, commit, branches)
-- UI library integration: shadcn/ui, MUI, PrimeReact, Tailwind
-
-### 🖼️ Image Generation
-- **Alem AI Plus** integration for text-to-image generation
-- Install skill: `operator install https://github.com/yrn-dev/operator-alem-image-plus`
-- Supports portraits, product shots, storyboards, posters, infographics
-
-### 🔬 Research & Analysis
-- **Deep Research** — web search, Wikipedia, DuckDuckGo with cross-verification
-- Collects data from multiple sources, compares, assesses credibility
-- Generates structured reports with facts and references
-- Suitable for scientific papers, journalism, business analysis
-
-### 🤖 Automation
-- Run bash commands, scripts, pipelines
-- File processing: search, replace, convert, parse
-- Cron-based scheduling, process monitoring
-- Web scraping via Puppeteer (navigation, screenshots, form filling)
-- Server management via SSH, PM2, ports
-
-### 🖥️ DevOps & System Administration
-- Server management: SSH, processes, ports, logs
-- PM2 service deployment and management
-- Resource monitoring (CPU, RAM, disk)
-- Nginx, Docker, environment configuration
-- MCP server integration (API connections)
-
-### 📊 Data Work
-- Read and analyze CSV, JSON, logs
-- Database queries via MCP tools
-- Extract text from PDF, DOCX
-- Report and documentation generation
-
-### ✍️ Content & Writing
-- Articles, reports, technical documentation
-- Translation and summarization
-- Social media post generation
-- Scientific and analytical writing
-
-### 📚 Learning
-- Explain complex topics in simple terms
-- Help with homework and projects
-- Generate tests and quiz questions
-- Lecture and article note-taking
-
-### 🧠 Task Management
-- Task planning (task_plan → task_update → task_list)
-- Persistent memory (memory_store → memory_recall)
-- Track progress across projects
-
-## Models
-
-| Provider | Description | API Key |
-|----------|-------------|---------|
-| **Alem AI** (`llm.alem.ai`) | Cloud models: Qwen 3, Gemma 4, GPT-oss | Yes (API key) |
-| **Ollama** | Local models on your hardware | No (free) |
-
-## Installation
+Личный агент для работы с кодом в терминале — свой аналог Claude Code, но на моделях Alem AI (`llm.alem.ai`) плюс всё, что крутится локально в Ollama. Читает и правит файлы, гоняет bash, помнит задачи и факты между сессиями, коммитит в git. Пакет называется `pzero-operator`, бинарник — `operator` (или короче: `opr`).
 
 ```bash
-# Clone and build
-git clone https://github.com/yrn-dev/operator.git
-cd operator
-npm install
-npm run build
-
-# Or install via npm
-npm install -g @yernur/operator
+npm install -g pzero-operator
+operator
 ```
 
-## Quick Start
+Пакет: [pzero-operator](https://www.npmjs.com/package/pzero-operator) · репозиторий: [yrn-dev/Operator](https://github.com/yrn-dev/Operator)
+
+## Запуск
 
 ```bash
-# Launch
-opr
-
-# Select model
-/model
-
-# Alem AI → enter API key → done
-# Ollama → works out of the box (no key needed)
+operator                          # интерактивный TUI
+operator -p "напиши тесты"        # одноразовый запрос, без TUI
+operator --continue                # продолжить последнюю сессию
+operator --resume                  # выбрать сессию из списка
+operator --list-models             # что вообще доступно
 ```
 
-## In-Interface Commands
+## Модели
 
-| Command | Description |
-|---------|-------------|
-| `/model` | Switch model (Alem AI + Ollama) |
-| `/export` | Export session to JSON |
-| `/import` | Import session from JSON |
-| `/new` | New session |
-| `/resume` | Resume another session |
-| `/quit` | Exit |
+По умолчанию — `qwen3-8`, 262K контекста, тянет картинки. И по вайб-кодингу и качеству кода сейчас реально обходит Opus 4.6 (max) — не маркетинг, проверено на своих задачах.
 
-## Tools
+| Модель | Контекст | Картинки |
+|---|---|---|
+| `qwen3-8` | 262K | да |
+| `gemma4` | 252K | да |
+| `gpt-oss` | 128K | нет |
 
-| Tool | Description |
-|------|-------------|
-| `read` / `write` / `edit` / `patch` | File operations |
-| `bash` | Execute commands |
-| `find` / `grep` / `ls` | File system navigation |
-| `git_status` / `git_commit` / `git_log` / `git_diff` / `git_branch` | Git operations |
-| `web_search` / `deep_research` | Web search |
-| `memory_store` / `memory_recall` | Persistent memory |
-| `task_plan` / `task_list` / `task_update` | Task planning |
-| `test_run` / `test_coverage` | Run tests |
-| `puppeteer_*` | Browser automation |
-| MCP tools | External API server integration |
+Плюс всё, что найдётся на `localhost:11434` — это Ollama, и не только локальные веса: с недавних пор она сама умеет проксировать облачные модели (`ollama signin`, модели с суффиксом `:cloud`) через тот же локальный API, так что список моделей может быть внушительным, даже если у тебя не крутится ничего тяжелее ноутбука. Подхватывается сам при старте, без конфига — и локальное, и облачное одинаково.
 
-## Skills
+Ключ Alem AI лежит в `~/.opr/agent/auth.json`:
 
-Extend operator with additional capabilities:
-
-```bash
-# Image generation (Alem AI Plus)
-operator install https://github.com/yrn-dev/operator-alem-image-plus
+```json
+{"alem-ai":{"type":"api_key","key":"sk-..."}}
 ```
 
-Available skills:
-- **Alem Image Plus** — text-to-image generation (portraits, product shots, posters, etc.)
+или просто `export ALEM_AI_API_KEY=sk-...`. Модельный реестр и переопределения контекстов — в `~/.opr/agent/models.json`, если что-то надо докрутить руками (провайдер, свой `baseUrl`, лимиты).
 
-## Usage Examples
+## В интерактиве
 
-```
-# Write a script
-"write a python script to parse CSV and plot a graph"
+- `/model` — переключить модель на лету
+- `/status` — модель, провайдер, шкала заполнения контекста и реальный расход токенов (вход/выход/кэш) за сессию
+- `/new`, `/resume` — новая сессия / выбрать старую
+- `/export`, `/import` — сессия в JSON и обратно
+- `!команда` — bash прямо из чата, `!!команда` — то же самое, но не попадёт в контекст
 
-# Generate an image
-"create a cyberpunk city poster with neon lights"
+## Инструменты агента
 
-# Research
-deep_research(query="comparison of neural networks for computer vision 2025")
+Из коробки: `read` / `write` / `edit` файлов, `bash`, `git_status` / `git_diff` / `git_commit`, `test_run` (сам определяет фреймворк — npm/pytest/cargo/go/gradle/dotnet), веб-поиск, и пара штук для долгой памяти между сессиями — `task_plan`/`task_update`/`task_list` под план работы, `memory_store`/`memory_recall` под факты (`~/.opr/agent/memory/*.md`, `~/.opr/agent/tasks.json`).
 
-# Automation
-"find all log files older than 7 days in /var/log and delete them"
+Системный промпт можно полностью заменить: `~/.opr/agent/SYSTEM.md` — глобально, `<проект>/.opr/SYSTEM.md` — под конкретный репозиторий (только для trusted-проектов). `APPEND_SYSTEM.md` рядом — не заменяет, а дописывает поверх.
 
-# DevOps
-"SSH to the server, check PM2 processes, restart any that are down"
+## Флаги, которые реально нужны
 
-# Analysis
-"read /data/report.pdf and give me a brief summary in English"
+| Флаг | Что делает |
+|---|---|
+| `--model <id>` | конкретная модель вместо дефолтной |
+| `--provider ollama` | всё через локальную Ollama |
+| `-p`, `--print` | без TUI, разовый прогон |
+| `-c`, `--continue` | продолжить сессию |
+| `--name "..."` | назвать сессию, чтобы потом найти |
+| `--offline` | без сети вообще (проверки апдейтов, веб-поиск и т.п. отключены) |
 
-# UI Development
-"find the PrimeReact DataTable component, show me props and usage example"
+Остальное — `operator --help`.
 
-# Content
-"write an article about artificial intelligence trends for habr.com"
-```
+## Сессии
 
-## Configuration
+Лежат в `~/.opr/agent/sessions/`, по одному jsonl-файлу на сессию, автосейв на каждом шаге. `--fork` берёт существующую сессию и продолжает её в новую, не трогая оригинал.
 
-| File | Description |
-|------|-------------|
-| `~/.opr/agent/settings.json` | Main settings |
-| `~/.opr/agent/auth.json` | API keys |
-| `~/.opr/agent/sessions/` | Session history |
+## Настройки
 
-Core settings support `enable_notifications` (default `false`). See `examples/core-settings.json`.
+В `~/.opr/agent/settings.json` можно включить `enable_notifications` (по умолчанию `false`). Пример — `examples/core-settings.json`.
 
-## Requirements
+## Лицензия
 
-- **Node.js** >= 22.19.0
-- **Alem AI API key** (for cloud models, optional)
-- **Ollama** (for local models, optional)
-
-## License
-
-MIT
+MIT © Yernur
