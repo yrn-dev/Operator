@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- Core `enable_notifications` config option (default `false`) for opt-in notifications.
+- `searchItems` helper with edge-case handling for empty queries, non-string input, regex metacharacters, and result truncation.
+
 ## [1.2.2] - 2026-08-19
 
 ### Added

@@ -25,7 +25,8 @@
   ],
   "scripts": {
     "dev": "node dist/cli.js",
-    "start": "node dist/cli.js"
+    "start": "node dist/cli.js",
+    "test": "node --experimental-strip-types --test test/**/*.test.ts"
   },
   "dependencies": {
     "@earendil-works/pi-agent-core": "0.80.2",

@@ -73,6 +73,10 @@ operator --list-models             # что вообще доступно
 
 Лежат в `~/.opr/agent/sessions/`, по одному jsonl-файлу на сессию, автосейв на каждом шаге. `--fork` берёт существующую сессию и продолжает её в новую, не трогая оригинал.
 
+## Настройки
+
+В `~/.opr/agent/settings.json` можно включить `enable_notifications` (по умолчанию `false`). Пример — `examples/core-settings.json`.
+
 ## Лицензия
 
 MIT © Yernur
