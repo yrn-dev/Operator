@@ -197,17 +197,95 @@ const ModelsConfigSchema = Type.Object({
     providers: Type.Record(Type.String(), ProviderConfigSchema),
 });
 const validateModelsConfig = Compile(ModelsConfigSchema);
+/**
+ * TypeBox errors use JSON Pointer paths. Convert them to a form users can copy
+ * into models.json, while preserving array indexes and property names that
+ * contain JSON Pointer escape sequences.
+ */
 function formatValidationPath(error) {
-    if (error.keyword === "required") {
-        const requiredProperties = error.params.requiredProperties;
-        const requiredProperty = requiredProperties?.[0];
-        if (requiredProperty) {
-            const basePath = error.instancePath.replace(/^\//, "").replace(/\//g, ".");
-            return basePath ? `${basePath}.${requiredProperty}` : requiredProperty;
-        }
+    const instancePath = error.instancePath ?? error.path ?? "";
+    const requiredProperties = error.params?.requiredProperties;
+    const requiredProperty = error.keyword === "required" ? requiredProperties?.[0] : undefined;
+    const segments = instancePath
+        .split("/")
+        .filter(Boolean)
+        .map((segment) => segment.replace(/~1/g, "/").replace(/~0/g, "~"));
+    if (requiredProperty) {
+        segments.push(requiredProperty);
     }
-    const path = error.instancePath.replace(/^\//, "").replace(/\//g, ".");
-    return path || "root";
+    return segments.length === 0
+        ? "root"
+        : segments
+            .map((segment, index) => /^\d+$/.test(segment) ? `[${segment}]` : index === 0 ? segment : `.${segment}`)
+            .join("");
+}
+function valueAtJsonPointer(value, pointer) {
+    if (!pointer)
+        return value;
+    let current = value;
+    for (const segment of pointer.split("/").filter(Boolean)) {
+        if (current === null || typeof current !== "object")
+            return undefined;
+        current = current[segment.replace(/~1/g, "/").replace(/~0/g, "~")];
+    }
+    return current;
+}
+function formatReceivedValue(value, path) {
+    // Configurations commonly contain API keys and authorization headers. Never
+    // include their values in a validation error, where they may be logged.
+    if (/(?:api[_-]?key|authorization|token|secret|password)/i.test(path)) {
+        return value === undefined ? "missing" : "a redacted value";
+    }
+    if (value === undefined)
+        return "missing";
+    if (value === null)
+        return "null";
+    if (typeof value === "string")
+        return JSON.stringify(value.length > 120 ? `${value.slice(0, 117)}...` : value);
+    try {
+        const serialized = JSON.stringify(value);
+        return serialized && serialized.length > 160 ? `${serialized.slice(0, 157)}...` : serialized ?? String(value);
+    }
+    catch {
+        return String(value);
+    }
+}
+function formatExpected(error) {
+    const schema = error.schema ?? {};
+    if (error.keyword === "required")
+        return "a required value";
+    if (error.keyword === "additionalProperties")
+        return "a recognized property";
+    if (schema.const !== undefined)
+        return JSON.stringify(schema.const);
+    if (Array.isArray(schema.enum))
+        return `one of ${schema.enum.map((value) => JSON.stringify(value)).join(", ")}`;
+    if (schema.type === "string") {
+        return schema.minLength === 1 ? "a non-empty string" : "a string";
+    }
+    if (schema.type === "number" || schema.type === "integer")
+        return schema.type;
+    if (schema.type === "boolean")
+        return "a boolean";
+    if (schema.type === "array")
+        return "an array";
+    if (schema.type === "object")
+        return "an object";
+    // TypeBox's generic text is usually "must be <type>". Make it fit the
+    // surrounding "expected ..." sentence when schema metadata is unavailable.
+    if (typeof error.message === "string" && error.message.startsWith("must be ")) {
+        return `a ${error.message.slice("must be ".length)}`;
+    }
+    return error.message ?? "a value matching the schema";
+}
+function formatValidationError(error, config) {
+    const path = formatValidationPath(error);
+    const pointer = error.instancePath ?? error.path ?? "";
+    const received = error.keyword === "required" ? undefined : error.value ?? valueAtJsonPointer(config, pointer);
+    const detail = error.keyword === "additionalProperties" && error.params?.additionalProperties
+        ? `unexpected property ${JSON.stringify(error.params.additionalProperties)}`
+        : `expected ${formatExpected(error)}, received ${formatReceivedValue(received, path)}`;
+    return `  - ${path}: ${detail}`;
 }
 function emptyCustomModelsResult(error) {
     return { models: [], overrides: new Map(), modelOverrides: new Map(), error };
@@ -448,7 +526,7 @@ export class ModelRegistry {
             if (!validateModelsConfig.Check(parsed)) {
                 const errors = validateModelsConfig
                     .Errors(parsed)
-                    .map((error) => `  - ${formatValidationPath(error)}: ${error.message}`)
+                    .map((error) => formatValidationError(error, parsed))
                     .join("\n") || "Unknown schema error";
                 return emptyCustomModelsResult(`Invalid models.json schema:\n${errors}\n\nFile: ${modelsJsonPath}`);
             }
