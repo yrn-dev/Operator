@@ -1,6 +1,6 @@
 {
   "name": "pzero-operator",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "Operator — AI coding agent with Alem AI models, TUI, and autonomous task execution.",
   "type": "module",
   "oprConfig": {

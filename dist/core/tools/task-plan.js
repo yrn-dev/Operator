@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
@@ -28,23 +28,59 @@ function getTasksPath() {
 async function ensureAgentDir() {
     await mkdir(getAgentDir(), { recursive: true });
 }
+// Serialises read-modify-write cycles. Two task_update calls issued in the same
+// turn would otherwise interleave and can leave a half-written file behind.
+let tasksQueue = Promise.resolve();
+function withTasksLock(fn) {
+    const run = tasksQueue.then(fn, fn);
+    tasksQueue = run.then(() => undefined, () => undefined);
+    return run;
+}
+// A non-atomic write can append past the end of a shorter document, leaving valid
+// JSON followed by trailing bytes. Recover by parsing the valid prefix instead of
+// failing every later call.
+function parseTasksState(raw) {
+    try {
+        return { state: JSON.parse(raw) };
+    }
+    catch (err) {
+        const position = Number(/position (\d+)/.exec(err?.message ?? "")?.[1]);
+        if (Number.isFinite(position) && position > 0 && position <= raw.length) {
+            try {
+                return { state: JSON.parse(raw.slice(0, position)), repaired: true };
+            }
+            catch {
+                /* prefix is not a complete document either */
+            }
+        }
+        return { error: err };
+    }
+}
 async function loadTasks() {
     await ensureAgentDir();
     const path = getTasksPath();
+    let raw;
     try {
-        const raw = await readFile(path, "utf-8");
-        const parsed = JSON.parse(raw);
-        if (parsed && typeof parsed === "object" && Array.isArray(parsed.tasks)) {
-            return parsed;
-        }
+        raw = await readFile(path, "utf-8");
     }
     catch (err) {
-        const code = err?.code;
-        if (code !== "ENOENT") {
+        if (err?.code !== "ENOENT") {
             throw err;
         }
+        return { tasks: [] };
     }
-    return { tasks: [] };
+    const { state, repaired, error } = parseTasksState(raw);
+    if (state && typeof state === "object" && Array.isArray(state.tasks)) {
+        if (repaired) {
+            await saveTasks(state).catch(() => { });
+        }
+        return state;
+    }
+    // Unrecoverable: keep the evidence and start clean rather than blocking every
+    // future task_plan/task_update/task_list call.
+    const backup = `${path}.corrupt-${Date.now()}`;
+    await rename(path, backup).catch(() => { });
+    return { tasks: [], recoveredFrom: backup, recoveryError: error?.message };
 }
 async function saveTasks(tasksState) {
     await ensureAgentDir();
@@ -53,7 +89,11 @@ async function saveTasks(tasksState) {
         ...tasksState,
         updatedAt: new Date().toISOString(),
     };
-    await writeFile(path, JSON.stringify(payload, null, 2), "utf-8");
+    // Write-then-rename: a reader sees either the old file or the new one, never a
+    // partially written mix.
+    const temp = `${path}.tmp-${process.pid}-${Date.now()}`;
+    await writeFile(temp, JSON.stringify(payload, null, 2), "utf-8");
+    await rename(temp, path);
 }
 function makeTaskId(index) {
     const ts = Date.now();
@@ -97,6 +137,7 @@ export function createTaskPlanToolDefinition(_cwd, _options) {
         ],
         parameters: taskPlanSchema,
         async execute(_toolCallId, input, _signal, _onUpdate, _ctx) {
+            return withTasksLock(async () => {
             const { goal, tasks } = input;
             const planTasks = tasks.map((title, idx) => ({
                 id: makeTaskId(idx),
@@ -112,6 +153,7 @@ export function createTaskPlanToolDefinition(_cwd, _options) {
                 ],
                 details: { goal, tasks: planTasks },
             };
+            });
         },
         renderCall(args, theme, _context) {
             const text = new Text("", 0, 0);
@@ -140,6 +182,7 @@ export function createTaskUpdateToolDefinition(_cwd, _options) {
         ],
         parameters: taskUpdateSchema,
         async execute(_toolCallId, input, _signal, _onUpdate, _ctx) {
+            return withTasksLock(async () => {
             const { id, index, status } = input;
             if (!VALID_STATUSES.has(status)) {
                 throw new Error(`Invalid status: ${status}. Allowed: ${[...VALID_STATUSES].join(", ")}`);
@@ -174,6 +217,7 @@ export function createTaskUpdateToolDefinition(_cwd, _options) {
                 ],
                 details: { updatedTask: task },
             };
+            });
         },
         renderCall(args, theme, _context) {
             const text = new Text("", 0, 0);

@@ -390,7 +390,18 @@ export class ModelRegistry {
                         const name = m.name;
                         const exists = combined.some(x => x.provider === "ollama" && x.id === name);
                         if (!exists) {
-                            const isMultimodal = OLLAMA_MULTIMODAL_HINTS.test(name);
+                            // Зрение берём из capabilities самой Ollama: по имени не угадать
+                            // (gemma4:cloud под подсказки не подходит, а картинки видит).
+                            let isMultimodal = OLLAMA_MULTIMODAL_HINTS.test(name);
+                            try {
+                                const show = spawnSync("curl", ["-s", "--max-time", "3", "http://localhost:11434/api/show", "-d", JSON.stringify({ model: name })], { encoding: "utf-8" });
+                                const capabilities = show.status === 0 && show.stdout ? JSON.parse(show.stdout).capabilities : undefined;
+                                if (Array.isArray(capabilities)) {
+                                    isMultimodal = capabilities.includes("vision");
+                                }
+                            } catch (e) {
+                                // Старая Ollama без capabilities — остаёмся на подсказках по имени
+                            }
                             combined.push({
                                 id: name,
                                 name: name,

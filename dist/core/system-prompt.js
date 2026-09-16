@@ -4,6 +4,16 @@
 import { getDocsPath, getExamplesPath, getReadmePath } from "../config.js";
 import { formatSkillsForPrompt } from "./skills.js";
 
+/**
+ * Официальные страницы самого оператора. Добавляются и к своему SYSTEM.md,
+ * чтобы агент всегда мог дать ссылки, когда спрашивают о нём самом.
+ */
+const ABOUT_OPERATOR = `[ОБ OPERATOR — ОФИЦИАЛЬНЫЕ СТРАНИЦЫ]
+Если спрашивают, где скачать, обновить или почитать про тебя самого, давай эти ссылки:
+- CLI (терминал): npm — https://www.npmjs.com/package/pzero-operator (установка: npm install -g pzero-operator, запуск: opr), GitHub — https://github.com/yrn-dev/Operator
+- Десктоп-приложение Operator: https://opr.pzero.kz
+Других официальных адресов нет — не придумывай их.`;
+
 /** Build the system prompt with tools, guidelines, and context */
 export function buildSystemPrompt(options) {
     const { customPrompt, selectedTools, toolSnippets, promptGuidelines, appendSystemPrompt, cwd, contextFiles: providedContextFiles, skills: providedSkills, } = options;
@@ -19,7 +29,7 @@ export function buildSystemPrompt(options) {
     const skills = providedSkills ?? [];
 
     if (customPrompt) {
-        let prompt = customPrompt;
+        let prompt = `${customPrompt}\n\n${ABOUT_OPERATOR}`;
         if (appendSection) {
             prompt += appendSection;
         }
@@ -49,7 +59,7 @@ export function buildSystemPrompt(options) {
     const examplesPath = getExamplesPath();
 
     // Build tools list based on selected tools.
-    const tools = selectedTools || ["read", "read_full", "grep", "find", "ls", "bash", "edit", "patch", "write", "web_search", "deep_research"];
+    const tools = selectedTools || ["read", "read_full", "grep", "find", "ls", "bash", "edit", "patch", "write", "web_search"];
     const visibleTools = tools.filter((name) => !!toolSnippets?.[name]);
     const toolsList = visibleTools.length > 0 ? visibleTools.map((name) => `- ${name}: ${toolSnippets[name]}`).join("\n") : "(none)";
 
@@ -71,7 +81,6 @@ export function buildSystemPrompt(options) {
     const hasEdit = tools.includes("edit");
     const hasPatch = tools.includes("patch");
     const hasWebSearch = tools.includes("web_search");
-    const hasDeepResearch = tools.includes("deep_research");
     // File exploration guidelines
     if (hasBash && !hasGrep && !hasFind && !hasLs) {
         addGuideline("Use bash for file operations like ls, rg, find");
@@ -81,10 +90,6 @@ export function buildSystemPrompt(options) {
     }
     if (hasWebSearch) {
         addGuideline("Use web_search to find authoritative primary sources (documentation, official standards, whitepapers) and cross-reference them.");
-    }
-    if (hasDeepResearch) {
-        addGuideline("Use deep_research for systematic and comprehensive investigation of complex topics. Generate structured, academic-grade reports with detailed comparisons, evidence, and clear citations.");
-        addGuideline("When deep_research returns confirmed, likely, unclear, or conflicting statuses, preserve that confidence level in the final answer instead of upgrading uncertain claims.");
     }
     if (hasRead && hasEdit) {
         addGuideline("Before editing, read the exact file section you are about to change. Do not guess file contents.");
@@ -114,6 +119,8 @@ export function buildSystemPrompt(options) {
 
 [CORE IDENTITY]
 Ты — мощный ИИ-агент для разработки. Минимум слов, максимум действий. Получил задачу → подумал → сделал → проверил → ответил.
+
+${ABOUT_OPERATOR}
 
 [CHAIN OF THOUGHT — ДУМАЙ ПЕРЕД ДЕЙСТВИЕМ]
 Перед КАЖДЫМ действием свободно и подробно подумай (в thinking/reasoning):
@@ -204,9 +211,8 @@ git_commit: { "message": "feat(auth): add login endpoint", "files": ["src/auth.t
 - Добавляй обработку ошибок
 - Не оставляй TODO/FIXME без необходимости
 
-[ИССЛЕДОВАНИЕ (web_search / deep_research)]
+[ИССЛЕДОВАНИЕ (web_search)]
 - web_search: быстрый поиск документации, ответов
-- deep_research: глубокий анализ с кросс-верификацией
 - Перепроверяй факты, приводи конкретные цифры
 
 [MCP ИНСТРУМЕНТЫ (shadcn/ui, MUI, PrimeReact)]

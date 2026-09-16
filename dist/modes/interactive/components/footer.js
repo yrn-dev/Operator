@@ -1,7 +1,77 @@
-import { isAbsolute, relative, resolve, sep } from "node:path";
+import { readFileSync, statSync } from "node:fs";
+import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
+import { getAgentDir } from "../../../config.js";
 import { areExperimentalFeaturesEnabled } from "../../../core/experimental.js";
 import { theme } from "../theme/theme.js";
+
+// ── Plan strip ──
+// task_plan writes the plan to disk, but it is only visible when something prints
+// it. Keeping progress on one always-visible line means a long session never loses
+// the thread — and a plan that stops advancing is immediately obvious.
+const PLAN_CACHE_TTL_MS = 1000;
+// A plan older than this belongs to some earlier session; showing it is noise.
+const PLAN_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+// Keep a finished plan up briefly so the final task ticking over is visible.
+const PLAN_COMPLETED_LINGER_MS = 5 * 60 * 1000;
+const PLAN_DONE_STATUSES = new Set(["done", "skipped"]);
+
+let planCache = { checkedAt: 0, mtimeMs: 0, state: null };
+
+function readPlanState() {
+    const now = Date.now();
+    if (now - planCache.checkedAt < PLAN_CACHE_TTL_MS) {
+        return planCache.state;
+    }
+    planCache.checkedAt = now;
+    const path = join(getAgentDir(), "tasks.json");
+    try {
+        const { mtimeMs } = statSync(path);
+        if (mtimeMs === planCache.mtimeMs) {
+            return planCache.state;
+        }
+        planCache.mtimeMs = mtimeMs;
+        const parsed = JSON.parse(readFileSync(path, "utf-8"));
+        planCache.state = Array.isArray(parsed?.tasks) ? parsed : null;
+    }
+    catch {
+        // Missing, unreadable or mid-write: just show nothing this tick.
+        planCache.state = null;
+    }
+    return planCache.state;
+}
+
+function formatPlanStrip(width) {
+    const state = readPlanState();
+    const tasks = state?.tasks;
+    if (!tasks || tasks.length === 0) {
+        return null;
+    }
+    const updatedAt = Date.parse(state.updatedAt ?? "");
+    const age = Number.isFinite(updatedAt) ? Date.now() - updatedAt : Number.POSITIVE_INFINITY;
+    if (age > PLAN_MAX_AGE_MS) {
+        return null;
+    }
+    const done = tasks.filter((task) => PLAN_DONE_STATUSES.has(task.status)).length;
+    if (done === tasks.length && age > PLAN_COMPLETED_LINGER_MS) {
+        return null;
+    }
+    const blocked = tasks.filter((task) => task.status === "blocked").length;
+    const current = tasks.find((task) => task.status === "doing")
+        ?? tasks.find((task) => task.status === "pending");
+    const counter = `plan ${done}/${tasks.length}`;
+    const parts = [theme.fg("dim", counter)];
+    if (blocked > 0) {
+        parts.push(theme.fg("error", `${blocked} blocked`));
+    }
+    if (current?.title) {
+        parts.push(theme.fg("dim", "now: ") + theme.fg("accent", sanitizeStatusText(current.title)));
+    }
+    else if (done === tasks.length) {
+        parts.push(theme.fg("success", "complete"));
+    }
+    return truncateToWidth(parts.join(theme.fg("dim", " · ")), width, theme.fg("dim", "..."));
+}
 /**
  * Sanitize text for display in a single-line status.
  * Removes newlines, tabs, carriage returns, and other control characters.
@@ -205,6 +275,10 @@ export class FooterComponent {
         const dimRemainder = theme.fg("dim", remainder);
         const pwdLine = truncateToWidth(theme.fg("dim", pwd), width, theme.fg("dim", "..."));
         const lines = [dimStatsLeft + dimRemainder, pwdLine];
+        const planLine = formatPlanStrip(width);
+        if (planLine) {
+            lines.push(planLine);
+        }
         // Add extension statuses on a single line, sorted by key alphabetically
         const extensionStatuses = this.footerData.getExtensionStatuses();
         if (extensionStatuses.size > 0) {

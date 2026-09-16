@@ -9,7 +9,7 @@ export { createMemoryRecallTool, createMemoryRecallToolDefinition, createMemoryS
 export { createPatchTool, createPatchToolDefinition, } from "./patch.js";
 export { createReadTool, createReadToolDefinition, } from "./read.js";
 export { createReadFullTool, createReadFullToolDefinition, } from "./read-full.js";
-export { createDeepResearchTool, createDeepResearchToolDefinition, } from "./deep-research.js";
+export { createAppControlTool, createAppControlToolDefinition, } from "./app-control.js";
 export { createTaskListTool, createTaskListToolDefinition, createTaskPlanTool, createTaskPlanToolDefinition, createTaskUpdateTool, createTaskUpdateToolDefinition, } from "./task-plan.js";
 export { createTestRunTool, createTestRunToolDefinition, } from "./test-run.js";
 export { DEFAULT_MAX_BYTES, DEFAULT_MAX_LINES, formatSize, truncateHead, truncateLine, truncateTail, } from "./truncate.js";
@@ -25,12 +25,12 @@ import { createMemoryRecallTool, createMemoryRecallToolDefinition, createMemoryS
 import { createPatchTool, createPatchToolDefinition } from "./patch.js";
 import { createReadTool, createReadToolDefinition } from "./read.js";
 import { createReadFullTool, createReadFullToolDefinition } from "./read-full.js";
-import { createDeepResearchTool, createDeepResearchToolDefinition } from "./deep-research.js";
+import { createAppControlTool, createAppControlToolDefinition } from "./app-control.js";
 import { createTaskListTool, createTaskListToolDefinition, createTaskPlanTool, createTaskPlanToolDefinition, createTaskUpdateTool, createTaskUpdateToolDefinition, } from "./task-plan.js";
 import { createTestRunTool, createTestRunToolDefinition } from "./test-run.js";
 import { createWebSearchTool, createWebSearchToolDefinition } from "./web-search.js";
 import { createWriteTool, createWriteToolDefinition } from "./write.js";
-export const allToolNames = new Set(["read", "read_full", "bash", "edit", "patch", "write", "grep", "find", "ls", "web_search", "deep_research", "task_plan", "task_update", "task_list", "memory_store", "memory_recall", "test_run", "git_status", "git_diff", "git_commit"]);
+export const allToolNames = new Set(["read", "read_full", "bash", "edit", "patch", "write", "grep", "find", "ls", "web_search", "app_control", "task_plan", "task_update", "task_list", "memory_store", "memory_recall", "test_run", "git_status", "git_diff", "git_commit"]);
 export function createToolDefinition(toolName, cwd, options) {
     switch (toolName) {
         case "read":
@@ -53,8 +53,8 @@ export function createToolDefinition(toolName, cwd, options) {
             return createLsToolDefinition(cwd, options?.ls);
         case "web_search":
             return createWebSearchToolDefinition(cwd, options?.web_search);
-        case "deep_research":
-            return createDeepResearchToolDefinition(cwd, options?.deep_research);
+        case "app_control":
+            return createAppControlToolDefinition(cwd, options?.app_control);
         case "task_plan":
             return createTaskPlanToolDefinition(cwd, options?.task_plan);
         case "task_update":
@@ -99,8 +99,8 @@ export function createTool(toolName, cwd, options) {
             return createLsTool(cwd, options?.ls);
         case "web_search":
             return createWebSearchTool(cwd, options?.web_search);
-        case "deep_research":
-            return createDeepResearchTool(cwd, options?.deep_research);
+        case "app_control":
+            return createAppControlTool(cwd, options?.app_control);
         case "task_plan":
             return createTaskPlanTool(cwd, options?.task_plan);
         case "task_update":
@@ -135,7 +135,7 @@ export function createCodingToolDefinitions(cwd, options) {
         createPatchToolDefinition(cwd, options?.patch),
         createWriteToolDefinition(cwd, options?.write),
         createWebSearchToolDefinition(cwd, options?.web_search),
-        createDeepResearchToolDefinition(cwd, options?.deep_research),
+        createAppControlToolDefinition(cwd, options?.app_control),
         createTaskPlanToolDefinition(cwd, options?.task_plan),
         createTaskUpdateToolDefinition(cwd, options?.task_update),
         createTaskListToolDefinition(cwd, options?.task_list),
@@ -168,7 +168,7 @@ export function createAllToolDefinitions(cwd, options) {
         find: createFindToolDefinition(cwd, options?.find),
         ls: createLsToolDefinition(cwd, options?.ls),
         web_search: createWebSearchToolDefinition(cwd, options?.web_search),
-        deep_research: createDeepResearchToolDefinition(cwd, options?.deep_research),
+        app_control: createAppControlToolDefinition(cwd, options?.app_control),
         task_plan: createTaskPlanToolDefinition(cwd, options?.task_plan),
         task_update: createTaskUpdateToolDefinition(cwd, options?.task_update),
         task_list: createTaskListToolDefinition(cwd, options?.task_list),
@@ -192,7 +192,7 @@ export function createCodingTools(cwd, options) {
         createPatchTool(cwd, options?.patch),
         createWriteTool(cwd, options?.write),
         createWebSearchTool(cwd, options?.web_search),
-        createDeepResearchTool(cwd, options?.deep_research),
+        createAppControlTool(cwd, options?.app_control),
         createTaskPlanTool(cwd, options?.task_plan),
         createTaskUpdateTool(cwd, options?.task_update),
         createTaskListTool(cwd, options?.task_list),
@@ -225,7 +225,7 @@ export function createAllTools(cwd, options) {
         find: createFindTool(cwd, options?.find),
         ls: createLsTool(cwd, options?.ls),
         web_search: createWebSearchTool(cwd, options?.web_search),
-        deep_research: createDeepResearchTool(cwd, options?.deep_research),
+        app_control: createAppControlTool(cwd, options?.app_control),
         task_plan: createTaskPlanTool(cwd, options?.task_plan),
         task_update: createTaskUpdateTool(cwd, options?.task_update),
         task_list: createTaskListTool(cwd, options?.task_list),

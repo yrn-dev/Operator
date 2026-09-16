@@ -19,6 +19,8 @@ import { getThemeByName, theme } from "../modes/interactive/theme/theme.js";
 import { stripFrontmatter } from "../utils/frontmatter.js";
 import { resolvePath } from "../utils/paths.js";
 import { sleep } from "../utils/sleep.js";
+import { combineImages } from "../utils/image-collage.js";
+import { getImageLimit } from "./image-limit.js";
 import { formatNoApiKeyFoundMessage, formatNoModelSelectedMessage } from "./auth-guidance.js";
 import { executeBashWithOperations } from "./bash-executor.js";
 import { calculateContextTokens, collectEntriesForBranchSummary, compact, estimateContextTokens, estimateTokens, generateBranchSummary, prepareCompaction, shouldCompact, } from "./compaction/index.js";
@@ -787,7 +789,7 @@ export class AgentSession {
             // Add user message
             const userContent = [{ type: "text", text: expandedText }];
             if (currentImages) {
-                userContent.push(...currentImages);
+                userContent.push(...(await this._fitImagesToModel(currentImages)));
             }
             messages.push({
                 role: "user",
@@ -928,12 +930,28 @@ export class AgentSession {
     /**
      * Internal: Queue a steering message (already expanded, no extension command check).
      */
+    /**
+     * Модель с лимитом картинок на запрос (qwen3-8 — одна) из сообщения с несколькими
+     * фото увидела бы только последнее. Склеиваем их в одну картинку с номерами.
+     */
+    async _fitImagesToModel(images) {
+        const limit = getImageLimit(this.model);
+        if (typeof limit !== "number" || images.length <= limit)
+            return images;
+        const combined = await combineImages(images);
+        if (!combined)
+            return images;
+        return [
+            { type: "text", text: `[Пользователь прислал ${images.length} изображения. Они склеены в одну картинку сеткой слева направо, сверху вниз; над каждым — его номер от 1 до ${images.length}.]` },
+            combined,
+        ];
+    }
     async _queueSteer(text, images) {
         this._steeringMessages.push(text);
         this._emitQueueUpdate();
         const content = [{ type: "text", text }];
         if (images) {
-            content.push(...images);
+            content.push(...(await this._fitImagesToModel(images)));
         }
         this.agent.steer({
             role: "user",
@@ -949,7 +967,7 @@ export class AgentSession {
         this._emitQueueUpdate();
         const content = [{ type: "text", text }];
         if (images) {
-            content.push(...images);
+            content.push(...(await this._fitImagesToModel(images)));
         }
         this.agent.followUp({
             role: "user",
@@ -1938,7 +1956,7 @@ export class AgentSession {
         this._applyExtensionBindings(this._extensionRunner);
         const defaultActiveToolNames = this._baseToolsOverride
             ? Object.keys(this._baseToolsOverride)
-            : ["read", "read_full", "grep", "find", "ls", "bash", "edit", "patch", "write", "web_search", "deep_research", "task_plan", "task_update", "task_list", "memory_store", "memory_recall", "test_run", "git_status", "git_diff", "git_commit"];
+            : ["read", "read_full", "grep", "find", "ls", "bash", "edit", "patch", "write", "web_search", "task_plan", "task_update", "task_list", "memory_store", "memory_recall", "test_run", "git_status", "git_diff", "git_commit"];
         const baseActiveToolNames = options.activeToolNames ?? defaultActiveToolNames;
         this._refreshToolRegistry({
             activeToolNames: baseActiveToolNames,

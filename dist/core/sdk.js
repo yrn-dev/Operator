@@ -8,6 +8,7 @@ import { formatNoModelsAvailableMessage } from "./auth-guidance.js";
 import { AuthStorage } from "./auth-storage.js";
 import { DEFAULT_THINKING_LEVEL } from "./defaults.js";
 import { convertToLlm } from "./messages.js";
+import { limitImagesForModel } from "./image-limit.js";
 import { ModelRegistry } from "./model-registry.js";
 import { findInitialModel } from "./model-resolver.js";
 import { mergeProviderAttributionHeaders } from "./provider-attribution.js";
@@ -16,6 +17,7 @@ import { getDefaultSessionDir, SessionManager } from "./session-manager.js";
 import { SettingsManager } from "./settings-manager.js";
 import { time } from "./timings.js";
 import { createBashTool, createCodingTools, createEditTool, createFindTool, createGrepTool, createLsTool, createReadOnlyTools, createReadTool, createWriteTool, withFileMutationQueue, } from "./tools/index.js";
+export { getImageLimit, limitImagesForModel } from "./image-limit.js";
 // Re-exports
 export * from "./agent-session-runtime.js";
 export { withFileMutationQueue, 
@@ -128,7 +130,7 @@ export async function createAgentSession(options = {}) {
     else {
         thinkingLevel = clampThinkingLevel(model, thinkingLevel);
     }
-    const defaultActiveToolNames = ["read", "read_full", "grep", "find", "ls", "bash", "edit", "patch", "write", "web_search", "deep_research", "task_plan", "task_update", "task_list", "memory_store", "memory_recall", "test_run", "git_status", "git_diff", "git_commit"];
+    const defaultActiveToolNames = ["read", "read_full", "grep", "find", "ls", "bash", "edit", "patch", "write", "web_search", "task_plan", "task_update", "task_list", "memory_store", "memory_recall", "test_run", "git_status", "git_diff", "git_commit"];
     const allowedToolNames = options.tools ?? (options.noTools === "all" ? [] : undefined);
     const excludedToolNames = options.excludeTools;
     const excludedToolNameSet = excludedToolNames ? new Set(excludedToolNames) : undefined;
@@ -136,7 +138,7 @@ export async function createAgentSession(options = {}) {
     let agent;
     // Create convertToLlm wrapper that filters images if blockImages is enabled (defense-in-depth)
     const convertToLlmWithBlockImages = (messages) => {
-        const converted = convertToLlm(messages);
+        const converted = limitImagesForModel(convertToLlm(messages), agent?.state?.model);
         // Check setting dynamically so mid-session changes take effect
         if (!settingsManager.getBlockImages()) {
             return converted;
