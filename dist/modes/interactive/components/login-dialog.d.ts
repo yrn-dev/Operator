@@ -1,5 +1,5 @@
-import { type OAuthDeviceCodeInfo } from "@yernur/operator-ai/oauth";
-import { Container, type Focusable, type TUI } from "@yernur/operator-tui";
+import { type OAuthDeviceCodeInfo } from "@earendil-works/pi-ai/oauth";
+import { Container, type Focusable, type TUI } from "@earendil-works/pi-tui";
 /**
  * Login dialog component - replaces editor during OAuth login flow
  */

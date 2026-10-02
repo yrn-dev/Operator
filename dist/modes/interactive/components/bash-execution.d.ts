@@ -1,7 +1,7 @@
 /**
  * Component for displaying bash command execution with streaming output.
  */
-import { Container, type TUI } from "@yernur/operator-tui";
+import { Container, type TUI } from "@earendil-works/pi-tui";
 import { type TruncationResult } from "../../../core/tools/truncate.ts";
 export declare class BashExecutionComponent extends Container {
     private command;

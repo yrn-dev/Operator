@@ -1,7 +1,7 @@
 /**
  * Utilities for formatting keybinding hints in the UI.
  */
-import { type Keybinding } from "@yernur/operator-tui";
+import { type Keybinding } from "@earendil-works/pi-tui";
 export interface KeyTextFormatOptions {
     capitalize?: boolean;
 }

@@ -1,4 +1,4 @@
-import { type Keybinding, type KeybindingsConfig, type KeyId, KeybindingsManager as TuiKeybindingsManager } from "@yernur/operator-tui";
+import { type Keybinding, type KeybindingsConfig, type KeyId, KeybindingsManager as TuiKeybindingsManager } from "@earendil-works/pi-tui";
 export interface AppKeybindings {
     "app.interrupt": true;
     "app.clear": true;
@@ -43,7 +43,7 @@ export interface AppKeybindings {
     "app.tree.filter.cycleBackward": true;
 }
 export type AppKeybinding = keyof AppKeybindings;
-declare module "@yernur/operator-tui" {
+declare module "@earendil-works/pi-tui" {
     interface Keybindings extends AppKeybindings {
     }
 }

@@ -1,4 +1,4 @@
-import { Container, type Focusable } from "@yernur/operator-tui";
+import { Container, type Focusable } from "@earendil-works/pi-tui";
 import type { AuthStatus, AuthStorage } from "../../../core/auth-storage.ts";
 export type AuthSelectorProvider = {
     id: string;

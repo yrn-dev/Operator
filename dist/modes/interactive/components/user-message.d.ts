@@ -1,4 +1,4 @@
-import { Container, type MarkdownTheme } from "@yernur/operator-tui";
+import { Container, type MarkdownTheme } from "@earendil-works/pi-tui";
 /**
  * Component that renders a user message
  */

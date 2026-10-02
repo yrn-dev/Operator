@@ -1,4 +1,4 @@
-import { TUI } from "@yernur/operator-tui";
+import { TUI } from "@earendil-works/pi-tui";
 import { SettingsManager } from "../core/settings-manager.ts";
 export declare function createStartupTui(settingsManager: SettingsManager): Promise<TUI>;
 export declare function startStartupTui(ui: TUI, settingsManager: SettingsManager): void;

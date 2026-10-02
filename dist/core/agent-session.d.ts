@@ -12,8 +12,8 @@
  *
  * Modes use this class and add their own I/O layer on top.
  */
-import type { Agent, AgentEvent, AgentMessage, AgentState, AgentTool, ThinkingLevel } from "@yernur/operator-agent-core";
-import type { ImageContent, Model, TextContent } from "@yernur/operator-ai/compat";
+import type { Agent, AgentEvent, AgentMessage, AgentState, AgentTool, ThinkingLevel } from "@earendil-works/pi-agent-core";
+import type { ImageContent, Model, TextContent } from "@earendil-works/pi-ai/compat";
 import { type BashResult } from "./bash-executor.ts";
 import { type CompactionResult } from "./compaction/index.ts";
 import { type ContextUsage, type ExtensionCommandContextActions, type ExtensionErrorListener, type ExtensionMode, ExtensionRunner, type ExtensionUIContext, type InputSource, type ReplacedSessionContext, type SessionStartEvent, type ShutdownHandler, type ToolDefinition, type ToolInfo } from "./extensions/index.ts";

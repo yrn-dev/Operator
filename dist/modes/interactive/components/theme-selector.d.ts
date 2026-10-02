@@ -1,4 +1,4 @@
-import { Container, SelectList } from "@yernur/operator-tui";
+import { Container, SelectList } from "@earendil-works/pi-tui";
 /**
  * Component that renders a theme selector
  */

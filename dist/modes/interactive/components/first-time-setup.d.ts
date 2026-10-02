@@ -1,4 +1,4 @@
-import { Container } from "@yernur/operator-tui";
+import { Container } from "@earendil-works/pi-tui";
 import { type TerminalTheme } from "../theme/theme.ts";
 export interface FirstTimeSetupResult {
     theme: TerminalTheme;

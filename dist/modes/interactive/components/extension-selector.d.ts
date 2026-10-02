@@ -2,7 +2,7 @@
  * Generic selector component for extensions.
  * Displays a list of string options with keyboard navigation.
  */
-import { Container, type TUI } from "@yernur/operator-tui";
+import { Container, type TUI } from "@earendil-works/pi-tui";
 export interface ExtensionSelectorOptions {
     tui?: TUI;
     timeout?: number;

@@ -1,4 +1,4 @@
-import type { TUI } from "@yernur/operator-tui";
+import type { TUI } from "@earendil-works/pi-tui";
 import type { SettingsManager } from "../../../core/settings-manager.ts";
 import { type TerminalTheme, type Theme } from "./theme.ts";
 type ThemeResult = {

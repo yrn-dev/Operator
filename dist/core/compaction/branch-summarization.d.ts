@@ -4,8 +4,8 @@
  * When navigating to a different point in the session tree, this generates
  * a summary of the branch being left so context isn't lost.
  */
-import type { AgentMessage, StreamFn } from "@yernur/operator-agent-core";
-import type { Model } from "@yernur/operator-ai/compat";
+import type { AgentMessage, StreamFn } from "@earendil-works/pi-agent-core";
+import type { Model } from "@earendil-works/pi-ai/compat";
 import type { ReadonlySessionManager, SessionEntry } from "../session-manager.ts";
 import { type FileOperations } from "./utils.ts";
 export interface BranchSummaryResult {

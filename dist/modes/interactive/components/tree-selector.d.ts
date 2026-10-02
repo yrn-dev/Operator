@@ -1,4 +1,4 @@
-import { type Component, Container, type Focusable } from "@yernur/operator-tui";
+import { type Component, Container, type Focusable } from "@earendil-works/pi-tui";
 import type { SessionTreeNode } from "../../../core/session-manager.ts";
 /** Filter mode for tree display */
 export type FilterMode = "default" | "no-tools" | "user-only" | "labeled-only" | "all";

@@ -4,8 +4,8 @@
  * Extends the base AgentMessage type with coding-agent specific message types,
  * and provides a transformer to convert them to LLM-compatible messages.
  */
-import type { AgentMessage } from "@yernur/operator-agent-core";
-import type { ImageContent, Message, TextContent } from "@yernur/operator-ai";
+import type { AgentMessage } from "@earendil-works/pi-agent-core";
+import type { ImageContent, Message, TextContent } from "@earendil-works/pi-ai";
 export declare const COMPACTION_SUMMARY_PREFIX = "The conversation history before this point was compacted into the following summary:\n\n<summary>\n";
 export declare const COMPACTION_SUMMARY_SUFFIX = "\n</summary>";
 export declare const BRANCH_SUMMARY_PREFIX = "The following is a summary of a branch that this conversation came back from:\n\n<summary>\n";
@@ -49,7 +49,7 @@ export interface CompactionSummaryMessage {
     tokensBefore: number;
     timestamp: number;
 }
-declare module "@yernur/operator-agent-core" {
+declare module "@earendil-works/pi-agent-core" {
     interface CustomAgentMessages {
         bashExecution: BashExecutionMessage;
         custom: CustomMessage;

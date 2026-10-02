@@ -1,4 +1,4 @@
-import type { AgentState } from "@yernur/operator-agent-core";
+import type { AgentState } from "@earendil-works/pi-agent-core";
 import { SessionManager } from "../session-manager.ts";
 /**
  * Interface for rendering custom tools to HTML.

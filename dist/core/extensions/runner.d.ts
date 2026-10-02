@@ -1,9 +1,9 @@
 /**
  * Extension runner - executes extensions and manages their lifecycle.
  */
-import type { AgentMessage } from "@yernur/operator-agent-core";
-import type { ImageContent } from "@yernur/operator-ai";
-import type { KeyId } from "@yernur/operator-tui";
+import type { AgentMessage } from "@earendil-works/pi-agent-core";
+import type { ImageContent } from "@earendil-works/pi-ai";
+import type { KeyId } from "@earendil-works/pi-tui";
 import type { ResourceDiagnostic } from "../diagnostics.ts";
 import type { KeybindingsConfig } from "../keybindings.ts";
 import type { ModelRegistry } from "../model-registry.ts";

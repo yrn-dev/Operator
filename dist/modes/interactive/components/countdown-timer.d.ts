@@ -1,7 +1,7 @@
 /**
  * Reusable countdown timer for dialog components.
  */
-import type { TUI } from "@yernur/operator-tui";
+import type { TUI } from "@earendil-works/pi-tui";
 export declare class CountdownTimer {
     private intervalId;
     private remainingSeconds;

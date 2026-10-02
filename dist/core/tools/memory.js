@@ -34,7 +34,11 @@ function toKebabSlug(name) {
         .slice(0, 64);
 }
 function ensureAgentDir() {
-    return mkdir(getMemoryDir(), { recursive: true });
+    try {
+        return mkdir(getMemoryDir(), { recursive: true });
+    } catch (error) {
+        throw new Error(`Failed to ensure memory directory exists at ${getMemoryDir()}: ${error instanceof Error ? error.message : String(error)}`);
+    }
 }
 function buildMemoryMarkdown({ name, description, content, type = "project", related = [] }) {
     const slug = toKebabSlug(name);
@@ -67,15 +71,19 @@ function parseFrontmatter(raw) {
     return { meta, body };
 }
 async function listMemories() {
-    await ensureAgentDir();
-    const entries = await readdir(getMemoryDir(), { withFileTypes: true });
-    const files = [];
-    for (const entry of entries) {
-        if (entry.isFile() && entry.name.endsWith(".md")) {
-            files.push(entry.name);
+    try {
+        await ensureAgentDir();
+        const entries = await readdir(getMemoryDir(), { withFileTypes: true });
+        const files = [];
+        for (const entry of entries) {
+            if (entry.isFile() && entry.name.endsWith(".md")) {
+                files.push(entry.name);
+            }
         }
+        return files;
+    } catch (error) {
+        throw new Error(`Failed to list memory files: ${error instanceof Error ? error.message : String(error)}`);
     }
-    return files;
 }
 async function loadMemory(fileName) {
     const raw = await readFile(join(getMemoryDir(), fileName), "utf-8");

@@ -1,4 +1,4 @@
-import { Container, type MarkdownTheme } from "@yernur/operator-tui";
+import { Container, type MarkdownTheme } from "@earendil-works/pi-tui";
 import type { MessageRenderer } from "../../../core/extensions/types.ts";
 import type { CustomMessage } from "../../../core/messages.ts";
 /**
