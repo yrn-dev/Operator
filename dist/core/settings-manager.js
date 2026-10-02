@@ -646,10 +646,9 @@ export class SettingsManager {
     getEnableAnalytics() {
         return this.settings.enableAnalytics ?? false;
     }
-    getTrackingId() {
-        return this.settings.trackingId;
+    getEnableSorting() {
+        return this.settings.enableSorting ?? false;
     }
-    /** Set the analytics opt-in preference; generates a tracking identifier on first opt-in */
     setEnableAnalytics(enabled) {
         this.globalSettings.enableAnalytics = enabled;
         this.markModified("enableAnalytics");
@@ -658,6 +657,9 @@ export class SettingsManager {
             this.markModified("trackingId");
         }
         this.save();
+    }
+    getTrackingId() {
+        return this.settings.trackingId;
     }
     getPackages() {
         return [...(this.settings.packages ?? [])];
@@ -730,6 +732,11 @@ export class SettingsManager {
     setEnableSkillCommands(enabled) {
         this.globalSettings.enableSkillCommands = enabled;
         this.markModified("enableSkillCommands");
+        this.save();
+    }
+    setEnableSorting(enabled) {
+        this.globalSettings.enableSorting = enabled;
+        this.markModified("enableSorting");
         this.save();
     }
     getThinkingBudgets() {
