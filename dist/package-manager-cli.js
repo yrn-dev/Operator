@@ -352,7 +352,7 @@ async function getSelfUpdatePlan(force) {
         throw new Error(`Could not determine latest ${APP_NAME} version.`);
     }
     const packageName = latestRelease.packageName ?? PACKAGE_NAME;
-    const installSpec = `${packageName}@${latestRelease.version}`;
+    const installSpec = latestRelease.installSpec ?? `${packageName}@${latestRelease.version}`;
     if (force || packageName !== PACKAGE_NAME || isNewerPackageVersion(latestRelease.version, VERSION)) {
         return {
             packageName,

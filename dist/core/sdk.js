@@ -6,7 +6,7 @@ import { resolvePath } from "../utils/paths.js";
 import { AgentSession } from "./agent-session.js";
 import { formatNoModelsAvailableMessage } from "./auth-guidance.js";
 import { AuthStorage } from "./auth-storage.js";
-import { DEFAULT_THINKING_LEVEL } from "./defaults.js";
+import { DEFAULT_ACTIVE_TOOL_NAMES, DEFAULT_THINKING_LEVEL } from "./defaults.js";
 import { convertToLlm } from "./messages.js";
 import { limitImagesForModel } from "./image-limit.js";
 import { ModelRegistry } from "./model-registry.js";
@@ -16,6 +16,8 @@ import { DefaultResourceLoader } from "./resource-loader.js";
 import { getDefaultSessionDir, SessionManager } from "./session-manager.js";
 import { SettingsManager } from "./settings-manager.js";
 import { time } from "./timings.js";
+import { isAlemQwen, providerOptions } from "./provider-options.js";
+import { prepareRuntimeContext } from "./runtime-context.js";
 import { createBashTool, createCodingTools, createEditTool, createFindTool, createGrepTool, createLsTool, createReadOnlyTools, createReadTool, createWriteTool, withFileMutationQueue, } from "./tools/index.js";
 export { getImageLimit, limitImagesForModel } from "./image-limit.js";
 // Re-exports
@@ -71,6 +73,7 @@ export async function createAgentSession(options = {}) {
     const modelsPath = options.agentDir ? join(agentDir, "models.json") : undefined;
     const authStorage = options.authStorage ?? AuthStorage.create(authPath);
     const modelRegistry = options.modelRegistry ?? ModelRegistry.create(authStorage, modelsPath);
+    await modelRegistry.refreshOllama?.();
     const settingsManager = options.settingsManager ?? SettingsManager.create(cwd, agentDir);
     const sessionManager = options.sessionManager ?? SessionManager.create(cwd, getDefaultSessionDir(cwd, agentDir));
     if (!resourceLoader) {
@@ -112,27 +115,28 @@ export async function createAgentSession(options = {}) {
             modelFallbackMessage += `. Using ${model.provider}/${model.id}`;
         }
     }
+    const defaultThinking = settingsManager.getDefaultThinkingLevel() ?? (isAlemQwen(model) || model?.provider === "ollama" ? "off" : DEFAULT_THINKING_LEVEL);
     let thinkingLevel = options.thinkingLevel;
     // If session has data, restore thinking level from it
     if (thinkingLevel === undefined && hasExistingSession) {
         thinkingLevel = hasThinkingEntry
             ? existingSession.thinkingLevel
-            : (settingsManager.getDefaultThinkingLevel() ?? DEFAULT_THINKING_LEVEL);
+            : defaultThinking;
     }
     // Fall back to settings default
     if (thinkingLevel === undefined) {
-        thinkingLevel = settingsManager.getDefaultThinkingLevel() ?? DEFAULT_THINKING_LEVEL;
+        thinkingLevel = defaultThinking;
     }
     // Clamp to model capabilities
     if (!model) {
         thinkingLevel = "off";
     }
     else {
-        thinkingLevel = clampThinkingLevel(model, thinkingLevel);
+        thinkingLevel = clampThinkingLevel(model, model.reasoning && (!thinkingLevel || thinkingLevel === "off") ? "high" : thinkingLevel);
     }
-    const defaultActiveToolNames = ["read", "read_full", "grep", "find", "ls", "bash", "edit", "patch", "write", "web_search", "task_plan", "task_update", "task_list", "memory_store", "memory_recall", "test_run", "git_status", "git_diff", "git_commit"];
+    const defaultActiveToolNames = DEFAULT_ACTIVE_TOOL_NAMES;
     const allowedToolNames = options.tools ?? (options.noTools === "all" ? [] : undefined);
-    const excludedToolNames = options.excludeTools;
+    const excludedToolNames = options.noTools ? [...(options.excludeTools ?? []), "subagent", "background_run", "background_check", "background_stop", "github", "browser", "computer", "system_info"] : options.excludeTools;
     const excludedToolNameSet = excludedToolNames ? new Set(excludedToolNames) : undefined;
     const initialActiveToolNames = (options.tools ? [...options.tools] : options.noTools ? [] : defaultActiveToolNames).filter((name) => !excludedToolNameSet?.has(name));
     let agent;
@@ -188,8 +192,10 @@ export async function createAgentSession(options = {}) {
             const effectiveTimeoutMs = httpIdleTimeoutMs === 0 ? 2147483647 : httpIdleTimeoutMs;
             const timeoutMs = options?.timeoutMs ?? providerRetrySettings.timeoutMs ?? effectiveTimeoutMs;
             const websocketConnectTimeoutMs = options?.websocketConnectTimeoutMs ?? settingsManager.getWebSocketConnectTimeoutMs();
-            return streamSimple(model, context, {
+            const prepared = prepareRuntimeContext(context);
+            return streamSimple(model, prepared.context, providerOptions(model, {
                 ...options,
+                ...(prepared.stalled ? { toolChoice: "none", maxTokens: 2048 } : {}),
                 apiKey: auth.apiKey || "dummy",
                 env,
                 timeoutMs,
@@ -197,7 +203,7 @@ export async function createAgentSession(options = {}) {
                 maxRetries: options?.maxRetries ?? providerRetrySettings.maxRetries,
                 maxRetryDelayMs: options?.maxRetryDelayMs ?? providerRetrySettings.maxRetryDelayMs,
                 headers: mergeProviderAttributionHeaders(model, settingsManager, options?.sessionId, auth.headers, options?.headers),
-            });
+            }));
         },
         onPayload: async (payload, _model) => {
             const runner = extensionRunnerRef.current;

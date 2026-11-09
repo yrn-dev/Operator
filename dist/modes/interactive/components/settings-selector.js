@@ -367,20 +367,6 @@ export class SettingsSelectorComponent extends Container {
                 }, () => done()),
             },
             {
-                id: "thinking",
-                label: "Reasoning",
-                description: "Reasoning depth for reasoning-capable models",
-                currentValue: config.thinkingLevel,
-                submenu: (currentValue, done) => new SelectSubmenu("Reasoning", "Select reasoning depth for reasoning-capable models", config.availableThinkingLevels.map((level) => ({
-                    value: level,
-                    label: level,
-                    description: THINKING_DESCRIPTIONS[level],
-                })), currentValue, (value) => {
-                    callbacks.onThinkingLevelChange(value);
-                    done(value);
-                }, () => done()),
-            },
-            {
                 id: "theme",
                 label: "Theme",
                 description: "Color theme for the interface",

@@ -18,7 +18,7 @@ const memoryStoreSchema = Type.Object({
 }, { additionalProperties: false });
 const memoryRecallSchema = Type.Object({
     query: Type.String({ description: "Search query: name slug, description keywords, or arbitrary text" }),
-    limit: Type.Optional(Type.Number({ description: "Maximum results (default: 10)" })),
+    limit: Type.Optional(Type.Number({ description: "Maximum results (default: 5, max: 20); read the returned file path for full details" })),
 }, { additionalProperties: false });
 function getMemoryDir() {
     return join(getAgentDir(), "memory");
@@ -171,7 +171,7 @@ export function createMemoryRecallToolDefinition(_cwd, _options) {
         ],
         parameters: memoryRecallSchema,
         async execute(_toolCallId, input, _signal, _onUpdate, _ctx) {
-            const { query, limit = 10 } = input;
+            const { query, limit = 5 } = input;
             const files = await listMemories();
             const memories = [];
             for (const file of files) {
@@ -184,7 +184,7 @@ export function createMemoryRecallToolDefinition(_cwd, _options) {
                 }
             }
             memories.sort((a, b) => b.score - a.score);
-            const top = memories.slice(0, limit);
+            const top = memories.slice(0, Math.min(20, Math.max(1, Math.floor(limit))));
             if (top.length === 0) {
                 return {
                     content: [{ type: "text", text: `No memories found for query: "${query}"` }],
@@ -192,7 +192,9 @@ export function createMemoryRecallToolDefinition(_cwd, _options) {
                 };
             }
             const lines = top.map((m) => {
-                return `[${m.name}] ${m.description}\n${m.content}`;
+                const file = join(getMemoryDir(), m.fileName);
+                const excerpt = m.content.length > 1200 ? `${m.content.slice(0, 1200)}\n[Excerpt; read the file for full details.]` : m.content;
+                return `[${m.name}] ${m.description}\nFile: ${file}\n${excerpt}`;
             });
             return {
                 content: [{ type: "text", text: lines.join("\n\n---\n\n") }],

@@ -13,14 +13,14 @@ import { formatSize, truncateHead } from "./truncate.js";
 
 const execFileAsync = promisify(execFile);
 const FULL_READ_DEFAULT_MAX_LINES = 10000;
-const FULL_READ_DEFAULT_MAX_BYTES = 250 * 1024;
+const FULL_READ_DEFAULT_MAX_BYTES = 64 * 1024;
 const FULL_READ_MAX_BYTES_CAP = 1024 * 1024;
 
 const readFullSchema = Type.Object({
     path: Type.String({ description: "Path to the file to read (relative or absolute)" }),
     offset: Type.Optional(Type.Number({ description: "Line number to start reading from (1-indexed)" })),
     limit: Type.Optional(Type.Number({ description: "Maximum number of lines to read (default: 10000)" })),
-    maxBytes: Type.Optional(Type.Number({ description: "Maximum bytes to return for this chunk (default: 256000, hard cap: 1048576)" })),
+    maxBytes: Type.Optional(Type.Number({ description: "Maximum bytes to return for this chunk (default: 65536, hard cap: 1048576). Increase only when the task needs a larger chunk." })),
 });
 
 const defaultReadFullOperations = {
@@ -244,7 +244,7 @@ export function createReadFullToolDefinition(cwd, options) {
         description: `Read larger chunks of files and extract text from document-style formats. Best for large source files and documents like PDF, DOCX, ODT, and RTF. Returns up to ${FULL_READ_DEFAULT_MAX_LINES} lines or ${formatSize(FULL_READ_DEFAULT_MAX_BYTES)} per call by default, with offset-based continuation.`,
         promptSnippet: "Read large or document-style files with larger chunks and text extraction",
         promptGuidelines: [
-            "Use read_full when read would require many paginated calls.",
+            "Read only the needed sections; continue with nextOffset when necessary. Increase maxBytes only when a larger chunk is needed.",
             "Use read_full for PDF, DOCX, ODT, RTF, or binary-ish files that still contain extractable text.",
         ],
         parameters: readFullSchema,

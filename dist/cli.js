@@ -14,5 +14,10 @@ process.emitWarning = (() => { });
 // Configure undici's global dispatcher before provider SDKs issue requests.
 // Runtime settings are applied once SettingsManager has loaded global/project settings.
 configureHttpDispatcher();
-main(process.argv.slice(2));
+if (process.argv.includes('--doctor')) {
+    const { doctor } = await import('./core/native/doctor.js');
+    console.log(doctor());
+} else {
+    main(process.argv.slice(2));
+}
 //# sourceMappingURL=cli.js.map

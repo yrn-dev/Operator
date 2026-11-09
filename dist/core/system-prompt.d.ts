@@ -5,11 +5,11 @@ import { type Skill } from "./skills.ts";
 export interface BuildSystemPromptOptions {
     /** Custom system prompt (replaces default). */
     customPrompt?: string;
-    /** Tools to include in prompt. Default: [read, bash, edit, write] */
+    /** Active tools to include in prompt; defaults to DEFAULT_ACTIVE_TOOL_NAMES. Empty means no tools. */
     selectedTools?: string[];
     /** Optional one-line tool snippets keyed by tool name. */
     toolSnippets?: Record<string, string>;
-    /** Additional guideline bullets appended to the default system prompt guidelines. */
+    /** Additional guideline bullets included with either default or custom base prompts. */
     promptGuidelines?: string[];
     /** Text to append to system prompt. */
     appendSystemPrompt?: string;
@@ -24,5 +24,6 @@ export interface BuildSystemPromptOptions {
     skills?: Skill[];
 }
 /** Build the system prompt with tools, guidelines, and context */
+export declare const BASE_PROMPT: string;
 export declare function buildSystemPrompt(options: BuildSystemPromptOptions): string;
 //# sourceMappingURL=system-prompt.d.ts.map

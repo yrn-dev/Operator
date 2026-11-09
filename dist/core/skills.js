@@ -254,7 +254,7 @@ function loadSkillFromFile(filePath, source) {
  * Skills with disableModelInvocation=true are excluded from the prompt
  * (they can only be invoked explicitly via /skill:name commands).
  */
-export function formatSkillsForPrompt(skills) {
+export function formatSkillsForPrompt(skills, { maxDescriptionLength } = {}) {
     const visibleSkills = skills.filter((s) => !s.disableModelInvocation);
     if (visibleSkills.length === 0) {
         return "";
@@ -269,7 +269,9 @@ export function formatSkillsForPrompt(skills) {
     for (const skill of visibleSkills) {
         lines.push("  <skill>");
         lines.push(`    <name>${escapeXml(skill.name)}</name>`);
-        lines.push(`    <description>${escapeXml(skill.description)}</description>`);
+        const description = Number.isFinite(maxDescriptionLength) && maxDescriptionLength > 0 && skill.description.length > maxDescriptionLength
+            ? skill.description.slice(0, maxDescriptionLength).replace(/\s+\S*$/, "") + "… (полные инструкции в файле)" : skill.description;
+        lines.push(`    <description>${escapeXml(description)}</description>`);
         lines.push(`    <location>${escapeXml(skill.filePath)}</location>`);
         lines.push("  </skill>");
     }

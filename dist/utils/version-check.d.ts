@@ -2,6 +2,7 @@ export interface LatestOperatorRelease {
     version: string;
     packageName?: string;
     note?: string;
+    installSpec?: string;
 }
 export declare function comparePackageVersions(leftVersion: string, rightVersion: string): number | undefined;
 export declare function isNewerPackageVersion(candidateVersion: string, currentVersion: string): boolean;

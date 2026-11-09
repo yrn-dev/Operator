@@ -74,6 +74,7 @@ export interface DefaultResourceLoaderOptions {
     noThemes?: boolean;
     noContextFiles?: boolean;
     systemPrompt?: string;
+    /** Additions after global and trusted project APPEND_SYSTEM.md; an empty list keeps discovered additions. */
     appendSystemPrompt?: string[];
     extensionsOverride?: (base: LoadExtensionsResult) => LoadExtensionsResult;
     skillsOverride?: (base: {
@@ -199,7 +200,7 @@ export declare class DefaultResourceLoader implements ResourceLoader {
     private dedupePrompts;
     private dedupeThemes;
     private discoverSystemPromptFile;
-    private discoverAppendSystemPromptFile;
+    private discoverAppendSystemPromptFiles;
     private isUnderPath;
     private detectExtensionConflicts;
 }

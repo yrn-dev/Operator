@@ -8,6 +8,7 @@ import { completeSimple } from "@earendil-works/pi-ai/compat";
 import { convertToLlm, createBranchSummaryMessage, createCompactionSummaryMessage, createCustomMessage, } from "../messages.js";
 import { buildSessionContext } from "../session-manager.js";
 import { computeFileLists, createFileOps, extractFileOpsFromMessage, formatFileOperations, SUMMARIZATION_SYSTEM_PROMPT, serializeConversation, } from "./utils.js";
+import { boundedText, recoverySummary, withSummaryDeadline } from "./recovery.js";
 /**
  * Extract file operations from messages and previous compaction entries.
  */
@@ -76,7 +77,8 @@ export const DEFAULT_COMPACTION_SETTINGS = {
  * Uses the native totalTokens field when available, falls back to computing from components.
  */
 export function calculateContextTokens(usage) {
-    return usage.totalTokens || usage.input + usage.output + usage.cacheRead + usage.cacheWrite;
+    if (!usage) return 0;
+    return usage.totalTokens || (usage.input ?? 0) + (usage.output ?? 0) + (usage.cacheRead ?? 0) + (usage.cacheWrite ?? 0);
 }
 /**
  * Get usage from an assistant message if available.
@@ -150,7 +152,7 @@ export function estimateContextTokens(messages) {
  * Check if compaction should trigger based on context usage.
  */
 export function shouldCompact(contextTokens, contextWindow, settings) {
-    if (!settings.enabled)
+    if (!settings.enabled || contextWindow <= 0)
         return false;
     return contextTokens > contextWindow - settings.reserveTokens;
 }
@@ -315,6 +317,9 @@ export function findCutPoint(entries, startIndex, endIndex, keepRecentTokens) {
         accumulatedTokens += messageTokens;
         // Check if we've exceeded the budget
         if (accumulatedTokens >= keepRecentTokens) {
+            // A single large trailing tool result can exceed the whole budget.
+            // In that case keep its assistant/tool-result group, not all history.
+            cutIndex = cutPoints[cutPoints.length - 1];
             // Find the closest valid cut point at or after this entry
             for (let c = 0; c < cutPoints.length; c++) {
                 if (cutPoints[c] >= i) {
@@ -423,25 +428,22 @@ Use this EXACT format:
 
 Keep each section concise. Preserve exact file paths, function names, and error messages.`;
 function createSummarizationOptions(model, maxTokens, apiKey, headers, env, signal, thinkingLevel) {
-    const options = { maxTokens, signal, apiKey, headers, env };
-    if (model.reasoning && thinkingLevel && thinkingLevel !== "off") {
-        options.reasoning = thinkingLevel;
-    }
-    return options;
+    // Summarization should not inherit a slow reasoning budget from the main task.
+    return { maxTokens, signal, apiKey, headers, env, reasoning: "off" };
 }
 async function completeSummarization(model, context, options, streamFn) {
-    if (!streamFn) {
-        return completeSimple(model, context, options);
-    }
-    const stream = await streamFn(model, context, options);
-    return stream.result();
+    return withSummaryDeadline(async signal => {
+        if (!streamFn) return completeSimple(model, context, { ...options, signal });
+        const stream = await streamFn(model, context, { ...options, signal });
+        return stream.result();
+    }, options.signal);
 }
 /**
  * Generate a summary of the conversation using the LLM.
  * If previousSummary is provided, uses the update prompt to merge.
  */
 export async function generateSummary(currentMessages, model, reserveTokens, apiKey, headers, signal, customInstructions, previousSummary, thinkingLevel, streamFn, env) {
-    const maxTokens = Math.min(Math.floor(0.8 * reserveTokens), model.maxTokens > 0 ? model.maxTokens : Number.POSITIVE_INFINITY);
+    const maxTokens = Math.min(4096, Math.floor(0.8 * reserveTokens), model.maxTokens > 0 ? model.maxTokens : 4096);
     // Use update prompt if we have a previous summary, otherwise initial prompt
     let basePrompt = previousSummary ? UPDATE_SUMMARIZATION_PROMPT : SUMMARIZATION_PROMPT;
     if (customInstructions) {
@@ -450,11 +452,12 @@ export async function generateSummary(currentMessages, model, reserveTokens, api
     // Serialize conversation to text so model doesn't try to continue it
     // Convert to LLM messages first (handles custom types like bashExecution, custom, etc.)
     const llmMessages = convertToLlm(currentMessages);
-    const conversationText = serializeConversation(llmMessages);
+    const inputBudget = Math.max(1000, Math.min(80000, ((model.contextWindow ?? 128000) - maxTokens - 4096) * 2));
+    const conversationText = boundedText(serializeConversation(llmMessages), inputBudget);
     // Build the prompt with conversation wrapped in tags
     let promptText = `<conversation>\n${conversationText}\n</conversation>\n\n`;
     if (previousSummary) {
-        promptText += `<previous-summary>\n${previousSummary}\n</previous-summary>\n\n`;
+        promptText += `<previous-summary>\n${boundedText(previousSummary, 12000)}\n</previous-summary>\n\n`;
     }
     promptText += basePrompt;
     const summarizationMessages = [
@@ -469,11 +472,19 @@ export async function generateSummary(currentMessages, model, reserveTokens, api
     if (response.stopReason === "error") {
         throw new Error(`Summarization failed: ${response.errorMessage || "Unknown error"}`);
     }
+    if (response.stopReason === "aborted") {
+        const error = new Error("Summary request was interrupted");
+        error.name = signal?.aborted ? "AbortError" : "SummaryInterruptedError";
+        throw error;
+    }
     const textContent = response.content
         .filter((c) => c.type === "text")
         .map((c) => c.text)
         .join("\n");
-    return textContent;
+    if (!textContent.trim() || response.stopReason === "length") {
+        throw new Error("Summary was empty or incomplete");
+    }
+    return textContent.trim();
 }
 export function prepareCompaction(pathEntries, settings) {
     if (pathEntries.length > 0 && pathEntries[pathEntries.length - 1].type === "compaction") {
@@ -570,20 +581,14 @@ export async function compact(preparation, model, apiKey, headers, customInstruc
     const { firstKeptEntryId, messagesToSummarize, turnPrefixMessages, isSplitTurn, tokensBefore, previousSummary, fileOps, settings, } = preparation;
     // Generate summaries (can be parallel if both needed) and merge into one
     let summary;
-    if (isSplitTurn && turnPrefixMessages.length > 0) {
-        // Generate both summaries in parallel
-        const [historyResult, turnPrefixResult] = await Promise.all([
-            messagesToSummarize.length > 0
-                ? generateSummary(messagesToSummarize, model, settings.reserveTokens, apiKey, headers, signal, customInstructions, previousSummary, thinkingLevel, streamFn, env)
-                : Promise.resolve("No prior history."),
-            generateTurnPrefixSummary(turnPrefixMessages, model, settings.reserveTokens, apiKey, headers, env, signal, thinkingLevel, streamFn),
-        ]);
-        // Merge into single summary
-        summary = `${historyResult}\n\n---\n\n**Turn Context (split turn):**\n\n${turnPrefixResult}`;
-    }
-    else {
-        // Just generate history summary
-        summary = await generateSummary(messagesToSummarize, model, settings.reserveTokens, apiKey, headers, signal, customInstructions, previousSummary, thinkingLevel, streamFn, env);
+    let recovery;
+    try {
+        // One request covers history and the old turn prefix, avoiding two slow summaries.
+        summary = await generateSummary([...messagesToSummarize, ...turnPrefixMessages], model, settings.reserveTokens, apiKey, headers, signal, customInstructions, previousSummary, "off", streamFn, env);
+    } catch (error) {
+        if (signal?.aborted || error?.name === "AbortError") throw error;
+        summary = recoverySummary(preparation);
+        recovery = "local";
     }
     // Compute file lists and append to summary
     const { readFiles, modifiedFiles } = computeFileLists(fileOps);
@@ -595,7 +600,7 @@ export async function compact(preparation, model, apiKey, headers, customInstruc
         summary,
         firstKeptEntryId,
         tokensBefore,
-        details: { readFiles, modifiedFiles },
+        details: { readFiles, modifiedFiles, ...(recovery ? { recovery } : {}) },
     };
 }
 /**

@@ -97,7 +97,7 @@ export function parseArgs(args) {
         else if ((arg === "--thinking" || arg === "--reasoning") && i + 1 < args.length) {
             const level = args[++i];
             if (isValidThinkingLevel(level)) {
-                result.thinking = level;
+                result.thinking = level === "off" ? "high" : level;
             }
             else {
                 result.diagnostics.push({
@@ -246,7 +246,7 @@ ${chalk.bold("Options:")}
                                  Applies to built-in, extension, and custom tools
   --exclude-tools, -xt <tools>   Comma-separated denylist of tool names to disable
                                  Applies to built-in, extension, and custom tools
-  --reasoning <level>            Set reasoning level: off, minimal, low, medium, high, xhigh
+  --doctor                      Check local readiness without starting a conversation
   --extension, -e <path>         Load an extension file (can be used multiple times)
   --no-extensions, -ne           Disable extension discovery (explicit -e paths still work)
   --skill <path>                 Load a skill file or directory (can be used multiple times)

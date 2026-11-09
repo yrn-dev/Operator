@@ -55,6 +55,8 @@ export declare class ModelRegistry {
      * This is a fast check that doesn't refresh OAuth tokens.
      */
     getAvailable(): Model<Api>[];
+    /** Refresh the local installed/server Ollama list without reloading the session. */
+    refreshOllama(options?: { force?: boolean }): Promise<void>;
     /**
      * Find a model by provider and ID.
      */

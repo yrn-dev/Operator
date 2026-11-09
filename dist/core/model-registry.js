@@ -4,7 +4,7 @@
 import { getModels, getProviders, registerApiProvider, resetApiProviders, } from "@earendil-works/pi-ai/compat";
 import { registerOAuthProvider, resetOAuthProviders } from "@earendil-works/pi-ai/oauth";
 import { existsSync, readFileSync } from "fs";
-import { spawnSync } from "child_process";
+import { ollamaEndpoint, installedOllamaModels, ollamaDefinition, discoverOllamaModels } from "./ollama-discovery.js";
 import { join } from "path";
 import { Type } from "typebox";
 import { Compile } from "typebox/compile";
@@ -51,8 +51,8 @@ const OpenRouterRoutingSchema = Type.Object({
 // /models endpoint (e.g. Alem AI returns only id/object/created). Keyed by model id.
 // Used when models.json doesn't specify contextWindow explicitly. Falls back to 128000.
 const KNOWN_CONTEXT_WINDOWS = {
-    "qwen3-8": 262144,
-    "qwen3.8": 262144,
+    "qwen3-8": 258000,
+    "qwen3.8": 258000,
     "gemma4": 252000,
     "gpt-oss": 128000,
     "kimi": 262144,
@@ -336,12 +336,13 @@ export class ModelRegistry {
                 provider: "alem-ai",
                 api: "openai-completions",
                 baseUrl: "https://llm.alem.ai/v1",
-                reasoning: false,
+                reasoning: true,
                 input: ["text", "image"],
                 cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-                contextWindow: 262144,
+                contextWindow: 258000,
                 maxTokens: 16384,
                 maxImages: 1,
+                compat: { thinkingFormat: "qwen-chat-template", supportsReasoningEffort: false },
             },
             {
                 id: "gemma4",
@@ -379,49 +380,27 @@ export class ModelRegistry {
             authHeader: true,
         });
 
-        // Автообнаружение моделей Ollama (если сервер запущен)
-        const OLLAMA_MULTIMODAL_HINTS = /\b(llava|bakllava|moondream|vision|vl|multimodal|cogito|minicpm|bunny|qwen.*vl|gemma.*it|x\/vision|granite.*vision)\b/i;
+        // Installed models remain visible even while the Ollama server is stopped.
+        this._ollamaOverrides = { providers: overrides, models: modelOverrides };
         try {
-            const result = spawnSync("curl", ["-s", "http://localhost:11434/api/tags"], { encoding: "utf-8" });
-            if (result.status === 0 && result.stdout) {
-                const data = JSON.parse(result.stdout);
-                if (data && Array.isArray(data.models)) {
-                    for (const m of data.models) {
-                        const name = m.name;
-                        const exists = combined.some(x => x.provider === "ollama" && x.id === name);
-                        if (!exists) {
-                            // Зрение берём из capabilities самой Ollama: по имени не угадать
-                            // (gemma4:cloud под подсказки не подходит, а картинки видит).
-                            let isMultimodal = OLLAMA_MULTIMODAL_HINTS.test(name);
-                            try {
-                                const show = spawnSync("curl", ["-s", "--max-time", "3", "http://localhost:11434/api/show", "-d", JSON.stringify({ model: name })], { encoding: "utf-8" });
-                                const capabilities = show.status === 0 && show.stdout ? JSON.parse(show.stdout).capabilities : undefined;
-                                if (Array.isArray(capabilities)) {
-                                    isMultimodal = capabilities.includes("vision");
-                                }
-                            } catch (e) {
-                                // Старая Ollama без capabilities — остаёмся на подсказках по имени
-                            }
-                            combined.push({
-                                id: name,
-                                name: name,
-                                provider: "ollama",
-                                api: "openai-completions",
-                                baseUrl: "http://localhost:11434/v1",
-                                reasoning: name.toLowerCase().includes("r1") || name.toLowerCase().includes("reasoning"),
-                                input: isMultimodal ? ["text", "image"] : ["text"],
-                                cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-                                contextWindow: resolveContextWindow(name, undefined),
-                                maxTokens: 16384
-                            });
-                        }
-                    }
-                }
+            this._ollamaEndpoint = ollamaEndpoint(overrides.get("ollama")?.baseUrl);
+            for (const entry of installedOllamaModels(this._ollamaEndpoint)) {
+                if (!combined.some(model => model.provider === "ollama" && model.id === entry.name))
+                    combined.push(ollamaDefinition(entry, this._ollamaEndpoint, false));
             }
-        } catch (e) {
-            // Ollama не запущен — ничего не делаем
-        }
+        } catch { this._ollamaEndpoint = undefined; }
+        this._ollamaRefreshedAt = 0;
 
+        // Apply configured overrides after adding local built-ins. Otherwise
+        // override-only providers silently lose their endpoint and model options.
+        combined = combined.map(model => {
+            const provider = overrides.get(model.provider);
+            const configured = provider ? { ...model,
+                baseUrl: provider.baseUrl ?? model.baseUrl,
+                compat: mergeCompat(model.compat, provider.compat) } : model;
+            const override = modelOverrides.get(model.provider)?.get(model.id);
+            return override ? applyModelOverride(configured, override) : configured;
+        });
         // Let OAuth providers modify their models (e.g., update baseUrl)
         for (const oauthProvider of this.authStorage.getOAuthProviders()) {
             const cred = this.authStorage.get(oauthProvider.id);
@@ -429,7 +408,28 @@ export class ModelRegistry {
                 combined = oauthProvider.modifyModels(combined, cred);
             }
         }
-        this.models = combined;
+        this.models = combined.map(model => model.provider === "alem-ai" && /^(qwen3-8|qwen3\.8)$/i.test(model.id)
+            ? { ...model, contextWindow: Math.min(model.contextWindow || 258000, 258000) } : model);
+    }
+    /** Refresh installed/server models without reloading auth, tools or the session. */
+    async refreshOllama({ force = false } = {}) {
+        if (!this._ollamaEndpoint) return;
+        if (this._ollamaRefresh) return this._ollamaRefresh;
+        if (!force && Date.now() - (this._ollamaRefreshedAt ?? 0) < 3000) return;
+        const endpoint = this._ollamaEndpoint;
+        this._ollamaRefresh = discoverOllamaModels(endpoint).then(models => {
+            if (endpoint !== this._ollamaEndpoint) return;
+            const configured = this.models.filter(model => model.provider === "ollama" && !model.ollama);
+            const provider = this._ollamaOverrides.providers.get("ollama");
+            const discovered = models.filter(model => !configured.some(custom => custom.id === model.id)).map(model => {
+                const merged = provider ? { ...model, compat: mergeCompat(model.compat, provider.compat) } : model;
+                const override = this._ollamaOverrides.models.get("ollama")?.get(model.id);
+                return override ? applyModelOverride(merged, override) : merged;
+            });
+            this.models = [...this.models.filter(model => model.provider !== "ollama"), ...configured, ...discovered];
+            this._ollamaRefreshedAt = Date.now();
+        }).finally(() => { this._ollamaRefresh = undefined; });
+        return this._ollamaRefresh;
     }
     /** Load built-in models and apply provider/model overrides */
     loadBuiltInModels(overrides, modelOverrides) {

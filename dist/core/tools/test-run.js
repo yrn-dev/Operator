@@ -9,6 +9,7 @@ import { resolveToCwd } from "./path-utils.js";
 import { getTextOutput, str } from "./render-utils.js";
 import { wrapToolDefinition } from "./tool-definition-wrapper.js";
 import { DEFAULT_MAX_BYTES, DEFAULT_MAX_LINES, formatSize, truncateHead } from "./truncate.js";
+import { detectNodeTestCommand } from "./node-test-command.js";
 const testRunSchema = Type.Object({
     command: Type.Optional(Type.String({ description: "Explicit test command to run (overrides auto-detection)" })),
     file: Type.Optional(Type.String({ description: "Specific test file to run; used to infer command if command is omitted" })),
@@ -27,10 +28,8 @@ async function detectTestCommand(cwd, file) {
     const candidates = [];
     // Node / JS
     if (await fileExistsAt(join(cwd, "package.json"))) {
-        candidates.push({ cmd: "npm", args: ["test"], priority: 10 });
-        candidates.push({ cmd: "npx", args: ["jest", "--passWithNoTests"], priority: 11 });
-        candidates.push({ cmd: "npx", args: ["vitest", "run"], priority: 12 });
-        candidates.push({ cmd: "npx", args: ["mocha"], priority: 13 });
+        const detected = await detectNodeTestCommand(cwd, file);
+        if (detected) candidates.push(detected);
     }
     // Python
     if (await fileExistsAt(join(cwd, "pyproject.toml")) ||

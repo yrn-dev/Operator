@@ -10,6 +10,7 @@ import { type SessionEntry } from "../session-manager.ts";
 import { type FileOperations } from "./utils.ts";
 /** Details stored in CompactionEntry.details for file tracking */
 export interface CompactionDetails {
+    recovery?: "local";
     readFiles: string[];
     modifiedFiles: string[];
 }

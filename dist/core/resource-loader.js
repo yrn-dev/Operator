@@ -1,3 +1,4 @@
+import nativeFeatures from "./native/index.js";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, resolve, sep } from "node:path";
 import chalk from "chalk";
@@ -129,7 +130,7 @@ export class DefaultResourceLoader {
         this.additionalSkillPaths = options.additionalSkillPaths ?? [];
         this.additionalPromptTemplatePaths = options.additionalPromptTemplatePaths ?? [];
         this.additionalThemePaths = options.additionalThemePaths ?? [];
-        this.extensionFactories = options.extensionFactories ?? [];
+        this.extensionFactories = [...(!process.env.OPERATOR_DESK_CONFIG && process.env.OPERATOR_NATIVE_MINIMAL !== "1" ? [nativeFeatures] : []), ...(options.extensionFactories ?? [])];
         this.noExtensions = options.noExtensions ?? false;
         this.noSkills = options.noSkills ?? false;
         this.noPromptTemplates = options.noPromptTemplates ?? false;
@@ -332,11 +333,15 @@ export class DefaultResourceLoader {
         this.agentsFiles = resolvedAgentsFiles.agentsFiles;
         const baseSystemPrompt = resolvePromptInput(this.systemPromptSource ?? this.discoverSystemPromptFile(), "system prompt");
         this.systemPrompt = this.systemPromptOverride ? this.systemPromptOverride(baseSystemPrompt) : baseSystemPrompt;
-        const appendSources = this.appendSystemPromptSource ??
-            (this.discoverAppendSystemPromptFile() ? [this.discoverAppendSystemPromptFile()] : []);
-        const baseAppend = appendSources
+        // An explicit append adds environment instructions; it must not silently
+        // replace the user's global or trusted project additions.
+        const appendSources = [...new Set([
+            ...this.discoverAppendSystemPromptFiles(),
+            ...(this.appendSystemPromptSource ?? []),
+        ])];
+        const baseAppend = [...new Set(appendSources
             .map((s) => resolvePromptInput(s, "append system prompt"))
-            .filter((s) => s !== undefined);
+            .filter((s) => s !== undefined))];
         this.appendSystemPrompt = this.appendSystemPromptOverride
             ? this.appendSystemPromptOverride(baseAppend)
             : baseAppend;
@@ -757,16 +762,12 @@ export class DefaultResourceLoader {
         }
         return undefined;
     }
-    discoverAppendSystemPromptFile() {
-        const projectPath = join(this.cwd, CONFIG_DIR_NAME, "APPEND_SYSTEM.md");
-        if (this.settingsManager.isProjectTrusted() && existsSync(projectPath)) {
-            return projectPath;
+    discoverAppendSystemPromptFiles() {
+        const paths = [join(this.agentDir, "APPEND_SYSTEM.md")];
+        if (this.settingsManager.isProjectTrusted()) {
+            paths.push(join(this.cwd, CONFIG_DIR_NAME, "APPEND_SYSTEM.md"));
         }
-        const globalPath = join(this.agentDir, "APPEND_SYSTEM.md");
-        if (existsSync(globalPath)) {
-            return globalPath;
-        }
-        return undefined;
+        return [...new Set(paths)].filter((path) => existsSync(path));
     }
     isUnderPath(target, root) {
         const normalizedRoot = resolve(root);

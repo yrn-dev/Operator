@@ -79,6 +79,7 @@ export async function createAgentSessionServices(options) {
         }
     }
     extensionsResult.runtime.pendingProviderRegistrations = [];
+    await modelRegistry.refreshOllama?.();
     diagnostics.push(...applyExtensionFlagValues(resourceLoader, options.extensionFlagValues));
     return {
         cwd,

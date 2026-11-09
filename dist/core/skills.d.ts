@@ -41,7 +41,7 @@ export declare function loadSkillsFromDir(options: LoadSkillsFromDirOptions): Lo
  * Skills with disableModelInvocation=true are excluded from the prompt
  * (they can only be invoked explicitly via /skill:name commands).
  */
-export declare function formatSkillsForPrompt(skills: Skill[]): string;
+export declare function formatSkillsForPrompt(skills: Skill[], options?: { maxDescriptionLength?: number }): string;
 export interface LoadSkillsOptions {
     /** Working directory for project-local skills. */
     cwd: string;

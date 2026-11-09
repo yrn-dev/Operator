@@ -24,7 +24,7 @@ import { getImageLimit } from "./image-limit.js";
 import { formatNoApiKeyFoundMessage, formatNoModelSelectedMessage } from "./auth-guidance.js";
 import { executeBashWithOperations } from "./bash-executor.js";
 import { calculateContextTokens, collectEntriesForBranchSummary, compact, estimateContextTokens, estimateTokens, generateBranchSummary, prepareCompaction, shouldCompact, } from "./compaction/index.js";
-import { DEFAULT_THINKING_LEVEL } from "./defaults.js";
+import { DEFAULT_ACTIVE_TOOL_NAMES, DEFAULT_THINKING_LEVEL } from "./defaults.js";
 import { exportSessionToHtml } from "./export-html/index.js";
 import { createToolHtmlRenderer } from "./export-html/tool-renderer.js";
 import { ExtensionRunner, wrapRegisteredTools, } from "./extensions/index.js";
@@ -145,6 +145,44 @@ export class AgentSession {
             activeToolNames: this._initialActiveToolNames,
             includeAllExtensionTools: true,
         });
+        // Agent-core snapshots tools at run start. Refresh that snapshot between
+        // turns so tools loaded by discovery are callable without a new prompt.
+        const prepareNextTurn = this.agent.prepareNextTurn;
+        this.agent.prepareNextTurn = async (signal) => {
+            const previous = await prepareNextTurn?.(signal);
+            if (!signal?.aborted && this.agent.state.messages.at(-1)?.role === "toolResult") {
+                const settings = this._getCompactionSettings();
+                const window = this.model?.contextWindow ?? 0;
+                const tokens = this._estimateCurrentContextTokens();
+                if (shouldCompact(tokens, window, settings)) {
+                    await this._runAutoCompaction("threshold", true);
+                }
+            }
+            return { ...previous, context: { systemPrompt: this.systemPrompt,
+                messages: this.agent.state.messages.slice(), tools: this.agent.state.tools.slice() } };
+        };
+    }
+    /** Keep room for another answer and tool results, before reaching provider limits. */
+    _getCompactionSettings() {
+        const settings = this.settingsManager.getCompactionSettings();
+        const window = this.model?.contextWindow ?? 0;
+        if (window <= 0) return settings;
+        return { ...settings,
+            reserveTokens: Math.min(Math.floor(window / 2), Math.max(settings.reserveTokens,
+                Math.ceil(window * 0.2), (this.model?.maxTokens ?? 16384) + Math.ceil(window * 0.1))),
+            keepRecentTokens: Math.min(settings.keepRecentTokens, Math.floor(window * 0.12)),
+        };
+    }
+    _estimateCurrentContextTokens(extra = []) {
+        const messages = [...this.agent.state.messages, ...extra];
+        const estimate = estimateContextTokens(messages);
+        const boundary = getLatestCompactionEntry(this.sessionManager.getBranch());
+        const source = estimate.lastUsageIndex === null ? undefined : messages[estimate.lastUsageIndex];
+        if (source && (!boundary || source.timestamp > new Date(boundary.timestamp).getTime())) return estimate.tokens;
+        const overhead = Math.ceil((this.systemPrompt.length + JSON.stringify(this.agent.state.tools.map(t => ({
+            name: t.name, description: t.description, parameters: t.parameters,
+        }))).length) / 2);
+        return estimateMessagesTokens(messages) + overhead;
     }
     /** Model registry for API key resolution and model discovery */
     get modelRegistry() {
@@ -206,9 +244,12 @@ export class AgentSession {
             }
         };
         this.agent.afterToolCall = async ({ toolCall, args, result, isError }) => {
+            // Extension tools use the MCP-style result.isError flag. Agent-core
+            // only sets its outer flag for thrown exceptions; preserve both.
+            const resultIsError = Boolean(isError || result?.isError);
             const runner = this._extensionRunner;
             if (!runner.hasHandlers("tool_result")) {
-                return undefined;
+                return { isError: resultIsError };
             }
             const hookResult = await runner.emitToolResult({
                 type: "tool_result",
@@ -217,15 +258,15 @@ export class AgentSession {
                 input: args,
                 content: result.content,
                 details: result.details,
-                isError,
+                isError: resultIsError,
             });
             if (!hookResult) {
-                return undefined;
+                return { isError: resultIsError };
             }
             return {
                 content: hookResult.content,
                 details: hookResult.details,
-                isError: hookResult.isError ?? isError,
+                isError: hookResult.isError ?? resultIsError,
             };
         };
     }
@@ -247,6 +288,8 @@ export class AgentSession {
     }
     // Track last assistant message for auto-compaction check
     _lastAssistantMessage = undefined;
+    _lengthContinuations = 0;
+    _continuationCancelled = false;
     /** Internal handler for agent events - shared by subscribe and reconnect */
     _handleAgentEvent = async (event) => {
         // When a user message starts, check if it's from either queue and remove it BEFORE emitting
@@ -293,6 +336,7 @@ export class AgentSession {
             if (event.message.role === "assistant") {
                 this._lastAssistantMessage = event.message;
                 const assistantMsg = event.message;
+                if (assistantMsg.stopReason === "toolUse" || assistantMsg.stopReason === "stop") this._lengthContinuations = 0;
                 if (assistantMsg.stopReason !== "error") {
                     this._overflowRecoveryAttempted = false;
                 }
@@ -310,6 +354,8 @@ export class AgentSession {
         }
     };
     _willRetryAfterAgentEnd(event) {
+        const last = [...event.messages].reverse().find(message => message.role === "assistant");
+        if (last?.stopReason === "length" && !this._continuationCancelled && this._lengthContinuations < 3) return true;
         const settings = this.settingsManager.getRetrySettings();
         if (!settings.enabled || this._retryAttempt >= settings.maxRetries) {
             return false;
@@ -663,7 +709,15 @@ export class AgentSession {
     // Prompting
     // =========================================================================
     async _runAgentPrompt(messages) {
+        this._continuationCancelled = false;
+        this._lengthContinuations = 0;
         try {
+            // Include the incoming user message in the budget, not only the previous reply's usage.
+            if (this.agent.state.messages.length && shouldCompact(this._estimateCurrentContextTokens(messages),
+                this.model?.contextWindow ?? 0, this._getCompactionSettings())) {
+                await this._runAutoCompaction("threshold", false);
+                if (this._continuationCancelled) return;
+            }
             await this.agent.prompt(messages);
             while (await this._handlePostAgentRun()) {
                 await this.agent.continue();
@@ -679,6 +733,7 @@ export class AgentSession {
         if (!msg) {
             return false;
         }
+        if (this._continuationCancelled) return false;
         if (this._isRetryableError(msg) && (await this._prepareRetry(msg))) {
             return true;
         }
@@ -693,6 +748,19 @@ export class AgentSession {
         }
         if (await this._checkCompaction(msg)) {
             return true;
+        }
+        // A token-limited response is unfinished, not a final answer. Keep it in
+        // history and append a persisted, non-user continuation marker. Never
+        // replay the previous tool calls or continue after an explicit abort.
+        if (msg.stopReason === "length" && !this._continuationCancelled) {
+            if (this._lengthContinuations < 3) {
+                this._lengthContinuations++;
+                await this.sendCustomMessage({ customType: "output_limit_continuation", display: false,
+                    content: "The previous response reached its output-token limit. Continue the current authorized task from where it stopped. Do not repeat completed actions. Use tools for remaining work; if finished, provide the final answer. Respect any pending user question or refusal." });
+                this._emit({ type: "auto_continue_start", reason: "length", attempt: this._lengthContinuations });
+                return true;
+            }
+            this._emit({ type: "auto_continue_end", reason: "length", exhausted: true });
         }
         // The agent loop drains both queues before emitting agent_end. Any messages
         // here were queued by agent_end extension handlers and need a continuation.
@@ -1098,6 +1166,8 @@ export class AgentSession {
      * Abort current operation and wait for agent to become idle.
      */
     async abort() {
+        this._continuationCancelled = true;
+        this.abortCompaction();
         this.abortRetry();
         this.agent.abort();
         await this.agent.waitForIdle();
@@ -1198,6 +1268,7 @@ export class AgentSession {
      * Saves to session and settings only if the level actually changes.
      */
     setThinkingLevel(level) {
+        if (this.supportsThinking() && (!level || level === "off")) level = "high";
         const availableLevels = this.getAvailableThinkingLevels();
         const effectiveLevel = availableLevels.includes(level) ? level : this._clampThinkingLevel(level, availableLevels);
         // Only persist if actually changing
@@ -1238,7 +1309,7 @@ export class AgentSession {
     getAvailableThinkingLevels() {
         if (!this.model)
             return THINKING_LEVELS;
-        return getSupportedThinkingLevels(this.model);
+        return getSupportedThinkingLevels(this.model).filter(level => !this.model.reasoning || level !== "off");
     }
     /**
      * Check if current model supports thinking/reasoning.
@@ -1300,7 +1371,7 @@ export class AgentSession {
             }
             const { apiKey, headers, env } = await this._getCompactionRequestAuth(this.model);
             const pathEntries = this.sessionManager.getBranch();
-            const settings = this.settingsManager.getCompactionSettings();
+            const settings = this._getCompactionSettings();
             const preparation = prepareCompaction(pathEntries, settings);
             if (!preparation) {
                 // Check why we can't compact
@@ -1356,7 +1427,7 @@ export class AgentSession {
             const newEntries = this.sessionManager.getEntries();
             const sessionContext = this.sessionManager.buildSessionContext();
             this.agent.state.messages = sessionContext.messages;
-            const estimatedTokensAfter = estimateMessagesTokens(sessionContext.messages);
+            const estimatedTokensAfter = this._estimateCurrentContextTokens();
             // Get the saved compaction entry for the extension event
             const savedCompactionEntry = newEntries.find((e) => e.type === "compaction" && e.summary === summary);
             if (this._extensionRunner && savedCompactionEntry) {
@@ -1387,13 +1458,14 @@ export class AgentSession {
         catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             const aborted = message === "Compaction cancelled" || (error instanceof Error && error.name === "AbortError");
+            const empty = /Already compacted|Nothing to compact/.test(message);
             this._emit({
                 type: "compaction_end",
                 reason: "manual",
                 result: undefined,
                 aborted,
                 willRetry: false,
-                errorMessage: aborted ? undefined : `Compaction failed: ${message}`,
+                errorMessage: aborted || empty ? undefined : `Compaction failed: ${message}`,
             });
             throw error;
         }
@@ -1427,7 +1499,7 @@ export class AgentSession {
      * @param skipAbortedCheck If false, include aborted messages (for pre-prompt check). Default: true
      */
     async _checkCompaction(assistantMessage, skipAbortedCheck = true) {
-        const settings = this.settingsManager.getCompactionSettings();
+        const settings = this._getCompactionSettings();
         if (!settings.enabled)
             return false;
         // Skip if message was aborted (user cancelled) - unless skipAbortedCheck is false
@@ -1452,7 +1524,7 @@ export class AgentSession {
         // but must not retry: the assistant answer already completed and agent.continue() cannot
         // continue from an assistant message.
         if (sameModel && isContextOverflow(assistantMessage, contextWindow)) {
-            const willRetry = assistantMessage.stopReason !== "stop";
+            const willRetry = assistantMessage.stopReason === "error";
             if (!willRetry) {
                 return await this._runAutoCompaction("overflow", false);
             }
@@ -1510,7 +1582,7 @@ export class AgentSession {
      * Internal: Run auto-compaction with events.
      */
     async _runAutoCompaction(reason, willRetry) {
-        const settings = this.settingsManager.getCompactionSettings();
+        const settings = this._getCompactionSettings();
         let started = false;
         try {
             if (!this.model) {
@@ -1536,9 +1608,9 @@ export class AgentSession {
             if (!preparation) {
                 return false;
             }
-            this._emit({ type: "compaction_start", reason });
             this._autoCompactionAbortController = new AbortController();
             started = true;
+            this._emit({ type: "compaction_start", reason });
             let extensionCompaction;
             let fromExtension = false;
             if (this._extensionRunner.hasHandlers("session_before_compact")) {
@@ -1599,7 +1671,7 @@ export class AgentSession {
             const newEntries = this.sessionManager.getEntries();
             const sessionContext = this.sessionManager.buildSessionContext();
             this.agent.state.messages = sessionContext.messages;
-            const estimatedTokensAfter = estimateMessagesTokens(sessionContext.messages);
+            const estimatedTokensAfter = this._estimateCurrentContextTokens();
             // Get the saved compaction entry for the extension event
             const savedCompactionEntry = newEntries.find((e) => e.type === "compaction" && e.summary === summary);
             if (this._extensionRunner && savedCompactionEntry) {
@@ -1633,14 +1705,15 @@ export class AgentSession {
         }
         catch (error) {
             const errorMessage = error instanceof Error ? error.message : "compaction failed";
+            const aborted = this._autoCompactionAbortController?.signal.aborted || error?.name === "AbortError";
             if (started) {
                 this._emit({
                     type: "compaction_end",
                     reason,
                     result: undefined,
-                    aborted: false,
+                    aborted,
                     willRetry: false,
-                    errorMessage: reason === "overflow"
+                    errorMessage: aborted ? undefined : reason === "overflow"
                         ? `Context overflow recovery failed: ${errorMessage}`
                         : `Auto-compaction failed: ${errorMessage}`,
                 });
@@ -1883,7 +1956,8 @@ export class AgentSession {
         this._toolDefinitions = definitionRegistry;
         this._toolPromptSnippets = new Map(Array.from(definitionRegistry.values())
             .map(({ definition }) => {
-            const snippet = this._normalizePromptSnippet(definition.promptSnippet);
+            const snippet = this._normalizePromptSnippet(definition.promptSnippet)
+                || this._normalizePromptSnippet(definition.description)?.slice(0, 280);
             return snippet ? [definition.name, snippet] : undefined;
         })
             .filter((entry) => entry !== undefined));
@@ -1956,7 +2030,7 @@ export class AgentSession {
         this._applyExtensionBindings(this._extensionRunner);
         const defaultActiveToolNames = this._baseToolsOverride
             ? Object.keys(this._baseToolsOverride)
-            : ["read", "read_full", "grep", "find", "ls", "bash", "edit", "patch", "write", "web_search", "task_plan", "task_update", "task_list", "memory_store", "memory_recall", "test_run", "git_status", "git_diff", "git_commit"];
+            : DEFAULT_ACTIVE_TOOL_NAMES;
         const baseActiveToolNames = options.activeToolNames ?? defaultActiveToolNames;
         this._refreshToolRegistry({
             activeToolNames: baseActiveToolNames,
@@ -2450,7 +2524,8 @@ export class AgentSession {
                 }
             }
             if (!hasPostCompactionUsage) {
-                return { tokens: null, contextWindow, percent: null };
+                const tokens = this._estimateCurrentContextTokens();
+                return { tokens, contextWindow, percent: (tokens / contextWindow) * 100, estimated: true };
             }
         }
         const estimate = estimateContextTokens(this.messages);

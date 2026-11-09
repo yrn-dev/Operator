@@ -408,6 +408,7 @@ export class InteractiveMode {
             return;
         }
         this.startupNoticesShown = true;
+        if (this.settingsManager.getQuietStartup() && !this.options.verbose) return;
         if (!this.changelogMarkdown) {
             return;
         }
@@ -459,9 +460,8 @@ export class InteractiveMode {
         this.ui.addChild(this.statusContainer);
         this.renderWidgets(); // Initialize with default spacer
         this.ui.addChild(this.widgetContainerAbove);
-        this.ui.addChild(new DynamicBorder());
+        // The editor already draws its own boundaries.
         this.ui.addChild(this.editorContainer);
-        this.ui.addChild(new DynamicBorder());
         this.ui.addChild(this.widgetContainerBelow);
         this.ui.addChild(this.footer);
         this.ui.setFocus(this.editor);
@@ -1175,7 +1175,7 @@ export class InteractiveMode {
         this.setupAutocompleteProvider();
         const extensionRunner = this.session.extensionRunner;
         this.setupExtensionShortcuts(extensionRunner);
-        this.showLoadedResources({ force: false, showDiagnosticsWhenQuiet: true });
+        this.showLoadedResources({ force: false, showDiagnosticsWhenQuiet: false });
         this.showStartupNoticesIfNeeded();
     }
     applyRuntimeSettings() {
@@ -1935,7 +1935,6 @@ export class InteractiveMode {
         this.defaultEditor.onAction("app.clear", () => this.handleCtrlC());
         this.defaultEditor.onCtrlD = () => this.handleCtrlD();
         this.defaultEditor.onAction("app.suspend", () => this.handleCtrlZ());
-        this.defaultEditor.onAction("app.reasoning.cycle", () => this.cycleThinkingLevel());
         this.defaultEditor.onAction("app.model.cycleForward", () => this.cycleModel("forward"));
         this.defaultEditor.onAction("app.model.cycleBackward", () => this.cycleModel("backward"));
         // Global debug handler on TUI (works regardless of focus)
@@ -2987,17 +2986,17 @@ export class InteractiveMode {
         this.ui.requestRender();
     }
     showNewVersionNotification(release) {
-        const action = theme.fg("accent", `${APP_NAME} update`);
-        const updateInstruction = theme.fg("muted", `New version ${release.version} is available. Run `) + action;
-        const changelogUrl = "https://opr.local/changelog";
+        const action = theme.fg("accent", "opr update");
+        const updateInstruction = theme.fg("muted", `Вышел Operator ${release.version}. Обновитесь прямо из терминала: `) + action;
+        const changelogUrl = "https://opr.pzero.kz/#install";
         const changelogLink = getCapabilities().hyperlinks
             ? hyperlink(theme.fg("accent", changelogUrl), changelogUrl)
             : theme.fg("accent", changelogUrl);
-        const changelogLine = theme.fg("muted", "Changelog: ") + changelogLink;
+        const changelogLine = theme.fg("muted", "Официальная страница: ") + changelogLink;
         const note = release.note?.trim();
         this.chatContainer.addChild(new Spacer(1));
         this.chatContainer.addChild(new DynamicBorder((text) => theme.fg("warning", text)));
-        this.chatContainer.addChild(new Text(`${theme.bold(theme.fg("warning", "Update Available"))}\n${updateInstruction}`, 1, 0));
+        this.chatContainer.addChild(new Text(`${theme.bold(theme.fg("warning", "Доступно обновление"))}\n${updateInstruction}`, 1, 0));
         if (note) {
             this.chatContainer.addChild(new Spacer(1));
             this.chatContainer.addChild(new Markdown(note, 1, 0, this.getMarkdownThemeWithSettings(), {
@@ -4499,7 +4498,6 @@ export class InteractiveMode {
         const clear = this.getAppKeyDisplay("app.clear");
         const exit = this.getAppKeyDisplay("app.exit");
         const suspend = this.getAppKeyDisplay("app.suspend");
-        const cycleThinkingLevel = this.getAppKeyDisplay("app.reasoning.cycle");
         const cycleModelForward = this.getAppKeyDisplay("app.model.cycleForward");
         const selectModel = this.getAppKeyDisplay("app.model.select");
         const expandTools = this.getAppKeyDisplay("app.tools.expand");
@@ -4542,7 +4540,6 @@ export class InteractiveMode {
 | \`${clear}\` | Clear editor (first) / exit (second) |
 | \`${exit}\` | Exit (when editor is empty) |
 | \`${suspend}\` | Suspend to background |
-| \`${cycleThinkingLevel}\` | Cycle reasoning level |
 | \`${cycleModelForward}\` / \`${cycleModelBackward}\` | Cycle models |
 | \`${selectModel}\` | Open model selector |
 | \`${expandTools}\` | Toggle tool output expansion |
