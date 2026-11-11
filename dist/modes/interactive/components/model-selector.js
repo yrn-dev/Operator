@@ -85,7 +85,6 @@ export class ModelSelectorComponent extends Container {
     buildFallbackModels() {
         return [
             { id: "qwen3-8", name: "qwen3-8", provider: ALEM_AI_PROVIDER, api: "openai-completions", baseUrl: "https://llm.alem.ai/v1", reasoning: false, input: ["text", "image"], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: 262144, maxTokens: 16384, maxImages: 1 },
-            { id: "gemma4", name: "gemma4", provider: ALEM_AI_PROVIDER, api: "openai-completions", baseUrl: "https://llm.alem.ai/v1", reasoning: false, input: ["text"], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: 252000, maxTokens: 16384 },
             { id: "gpt-oss", name: "gpt-oss", provider: ALEM_AI_PROVIDER, api: "openai-completions", baseUrl: "https://llm.alem.ai", reasoning: false, input: ["text"], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: 128000, maxTokens: 16384 },
         ];
     }

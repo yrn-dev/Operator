@@ -16,6 +16,7 @@ export { ExtensionSelectorComponent } from "./extension-selector.js";
 export { FirstTimeSetupComponent, } from "./first-time-setup.js";
 export { FooterComponent } from "./footer.js";
 export { keyHint, keyText, rawKeyHint } from "./keybinding-hints.js";
+export { KeysSelectorComponent } from "./keys-selector.js";
 export { LoginDialogComponent } from "./login-dialog.js";
 export { ModelSelectorComponent } from "./model-selector.js";
 export { OAuthSelectorComponent } from "./oauth-selector.js";

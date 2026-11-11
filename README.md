@@ -87,14 +87,14 @@ operator -p "проверь проект"       # одноразовый зап�
 Личный агент для работы с кодом в терминале — свой аналог Claude Code, но на моделях Alem AI (`llm.alem.ai`) плюс всё, что крутится локально в Ollama. Читает и правит файлы, гоняет bash, помнит задачи и факты между сессиями, коммитит в git. Пакет называется `pzero-operator`, бинарник — `operator` (или короче: `opr`).
 
 ```bash
-npm install -g pzero-operator
+npm install -g https://github.com/yrn-dev/Operator/releases/download/v1.3.4/pzero-operator-1.3.4.tgz
 operator
 ```
 
-Если npm недоступен, CLI можно установить напрямую из GitHub Release:
+Прямая установка — полная версия CLI с GitHub Release, без npm-реестра (если npm выдаёт ошибки — ставьте именно так, `opr update` тоже обновляется оттуда). Или из npm:
 
 ```bash
-npm install -g https://github.com/yrn-dev/Operator/releases/download/v1.3.3/pzero-operator-1.3.3.tgz
+npm install -g pzero-operator
 ```
 
 Пакет: [pzero-operator](https://www.npmjs.com/package/pzero-operator) · репозиторий: [yrn-dev/Operator](https://github.com/yrn-dev/Operator)
@@ -116,7 +116,6 @@ operator --list-models             # что вообще доступно
 | Модель | Контекст | Картинки |
 |---|---|---|
 | `qwen3-8` | 262K | да |
-| `gemma4` | 252K | да |
 | `gpt-oss` | 128K | нет |
 
 Плюс всё, что найдётся на `localhost:11434` — это Ollama, и не только локальные веса: с недавних пор она сама умеет проксировать облачные модели (`ollama signin`, модели с суффиксом `:cloud`) через тот же локальный API, так что список моделей может быть внушительным, даже если у тебя не крутится ничего тяжелее ноутбука. Подхватывается сам при старте, без конфига — и локальное, и облачное одинаково.
@@ -132,6 +131,7 @@ operator --list-models             # что вообще доступно
 ## В интерактиве
 
 - `/model` — переключить модель на лету
+- `/keys` — текущий API-ключ (замаскированный) и смена/удаление ключа провайдера
 - `/status` — модель, провайдер, шкала заполнения контекста и реальный расход токенов (вход/выход/кэш) за сессию
 - `/new`, `/resume` — новая сессия / выбрать старую
 - `/export`, `/import` — сессия в JSON и обратно

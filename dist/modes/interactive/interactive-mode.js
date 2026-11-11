@@ -50,6 +50,7 @@ import { ExtensionInputComponent } from "./components/extension-input.js";
 import { ExtensionSelectorComponent } from "./components/extension-selector.js";
 import { FooterComponent } from "./components/footer.js";
 import { formatKeyText, keyDisplayText, keyHint, keyText, rawKeyHint } from "./components/keybinding-hints.js";
+import { KeysSelectorComponent, maskApiKey } from "./components/keys-selector.js";
 import { LoginDialogComponent } from "./components/login-dialog.js";
 import { ModelSelectorComponent } from "./components/model-selector.js";
 import { OAuthSelectorComponent } from "./components/oauth-selector.js";
@@ -1993,6 +1994,12 @@ export class InteractiveMode {
                 await this.handleModelCommand(searchTerm);
                 return;
             }
+            if (text === "/keys" || text.startsWith("/keys ")) {
+                const filter = text.startsWith("/keys ") ? text.slice(6).trim() : undefined;
+                this.editor.setText("");
+                this.showKeysDialog(filter);
+                return;
+            }
             if (text === "/export" || text.startsWith("/export ")) {
                 await this.handleExportCommand(text);
                 this.editor.setText("");
@@ -3374,6 +3381,73 @@ export class InteractiveMode {
             return;
         }
         this.showModelSelector(searchTerm);
+    }
+    showKeysDialog(providerFilter) {
+        const registry = this.session.modelRegistry;
+        const auth = registry.authStorage;
+        const currentProvider = this.session.model?.provider;
+        const ids = new Set();
+        for (const m of registry.getAvailable())
+            ids.add(m.provider);
+        for (const p of auth.list())
+            ids.add(p);
+        const entryFor = (id) => {
+            const cred = auth.get(id);
+            const status = auth.getAuthStatus(id);
+            let summary;
+            if (cred?.type === "api_key")
+                summary = maskApiKey(cred.key) ?? "api key";
+            else if (cred?.type === "oauth")
+                summary = "OAuth token";
+            else if (status.source === "runtime")
+                summary = "runtime (--api-key)";
+            else if (status.source === "environment" && status.label)
+                summary = `env ${status.label}`;
+            else
+                summary = "not set";
+            return {
+                id,
+                name: registry.getProviderDisplayName(id),
+                summary,
+                current: id === currentProvider,
+            };
+        };
+        const entries = [...ids].map(entryFor).sort((a, b) => {
+            if (a.current !== b.current)
+                return a.current ? -1 : 1;
+            return a.id.localeCompare(b.id);
+        });
+        if (entries.length === 0) {
+            this.showStatus("No providers to show keys for");
+            return;
+        }
+        let initialIndex = 0;
+        let startInActions = false;
+        if (providerFilter) {
+            const idx = entries.findIndex((e) => e.id === providerFilter || e.name === providerFilter);
+            if (idx >= 0) {
+                initialIndex = idx;
+                startInActions = true;
+            }
+        }
+        this.showSelector((done) => {
+            const selector = new KeysSelectorComponent(this.ui, entries, {
+                onSetKey: (id, key) => {
+                    auth.set(id, { type: "api_key", key });
+                    done();
+                    this.showStatus(`API key saved for ${registry.getProviderDisplayName(id)}`);
+                },
+                onRemoveKey: (id) => {
+                    auth.remove(id);
+                    this.showStatus(`API key removed for ${registry.getProviderDisplayName(id)}`);
+                },
+                refresh: entryFor,
+            }, () => {
+                done();
+                this.ui.requestRender();
+            }, initialIndex, startInActions);
+            return { component: selector, focus: selector };
+        });
     }
     async findExactModelMatch(searchTerm) {
         const models = await this.getModelCandidates();

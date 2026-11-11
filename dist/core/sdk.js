@@ -192,7 +192,7 @@ export async function createAgentSession(options = {}) {
             const effectiveTimeoutMs = httpIdleTimeoutMs === 0 ? 2147483647 : httpIdleTimeoutMs;
             const timeoutMs = options?.timeoutMs ?? providerRetrySettings.timeoutMs ?? effectiveTimeoutMs;
             const websocketConnectTimeoutMs = options?.websocketConnectTimeoutMs ?? settingsManager.getWebSocketConnectTimeoutMs();
-            const prepared = prepareRuntimeContext(context);
+            const prepared = prepareRuntimeContext({ ...context, messages: limitImagesForModel(context.messages, model) });
             return streamSimple(model, prepared.context, providerOptions(model, {
                 ...options,
                 ...(prepared.stalled ? { toolChoice: "none", maxTokens: 2048 } : {}),
