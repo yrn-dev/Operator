@@ -218,7 +218,7 @@ export class FooterComponent {
         if (areExperimentalFeaturesEnabled()) {
             statsParts.push(`${theme.fg("accent", "xp")}`);
         }
-        let statsLeft = `${theme.fg("accent", "operator")}`;
+        let statsLeft = `${theme.bold(theme.fg("accent", "◆ operator"))}`;
         // Add model name on the right side, plus thinking level if model supports it
         let modelName = state.model?.name || state.model?.id || "no-model";
         let statsLeftWidth = visibleWidth(statsLeft);

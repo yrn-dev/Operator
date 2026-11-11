@@ -318,12 +318,13 @@ let BUILTIN_THEMES;
 function getBuiltinThemes() {
     if (!BUILTIN_THEMES) {
         const themesDir = getThemesDir();
-        const darkPath = path.join(themesDir, "dark.json");
-        const lightPath = path.join(themesDir, "light.json");
-        BUILTIN_THEMES = {
-            dark: JSON.parse(fs.readFileSync(darkPath, "utf-8")),
-            light: JSON.parse(fs.readFileSync(lightPath, "utf-8")),
-        };
+        BUILTIN_THEMES = {};
+        for (const file of fs.readdirSync(themesDir).sort()) {
+            if (!file.endsWith(".json") || file === "theme-schema.json") {
+                continue;
+            }
+            BUILTIN_THEMES[file.slice(0, -5)] = JSON.parse(fs.readFileSync(path.join(themesDir, file), "utf-8"));
+        }
     }
     return BUILTIN_THEMES;
 }
