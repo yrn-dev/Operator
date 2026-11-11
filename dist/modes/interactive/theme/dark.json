@@ -12,9 +12,9 @@
     "accent": "#88c0d0",
     "blue": "#81a1c1",
     "violet": "#8787af",
-    "success": "#a3be8c",
-    "warning": "#ebcb8b",
-    "error": "#bf616a"
+    "success": "#4ade80",
+    "warning": "#fbbf24",
+    "error": "#ff6b6b"
   },
   "colors": {
     "accent": "accent",
@@ -34,9 +34,9 @@
     "customMessageBg": "",
     "customMessageText": "text",
     "customMessageLabel": "muted",
-    "toolPendingBg": "",
-    "toolSuccessBg": "",
-    "toolErrorBg": "",
+    "toolPendingBg": "#2f2c1f",
+    "toolSuccessBg": "#1d2f26",
+    "toolErrorBg": "#332226",
     "toolTitle": "text",
     "toolOutput": "muted",
     "mdHeading": "text",
