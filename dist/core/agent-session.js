@@ -2014,6 +2014,11 @@ export class AgentSession {
             : createAllToolDefinitions(this._cwd, {
                 read: { autoResizeImages },
                 bash: { commandPrefix: shellCommandPrefix, shellPath },
+                // Live getter: the session id may be re-assigned (resume/fork),
+                // and each session keeps its own plan file for the footer strip.
+                task_plan: { getSessionId: () => this.sessionManager.getSessionId() },
+                task_update: { getSessionId: () => this.sessionManager.getSessionId() },
+                task_list: { getSessionId: () => this.sessionManager.getSessionId() },
             });
         this._baseToolDefinitions = new Map(Object.entries(baseToolDefinitions).map(([name, tool]) => [name, tool]));
         const extensionsResult = this._resourceLoader.getExtensions();

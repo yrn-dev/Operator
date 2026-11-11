@@ -16,15 +16,22 @@ const PLAN_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 const PLAN_COMPLETED_LINGER_MS = 5 * 60 * 1000;
 const PLAN_DONE_STATUSES = new Set(["done", "skipped"]);
 
-let planCache = { checkedAt: 0, mtimeMs: 0, state: null };
+let planCache = { checkedAt: 0, mtimeMs: 0, sessionId: "", state: null };
 
-function readPlanState() {
+// Plans are per-session: a fresh session must not inherit another session's
+// stale plan, and each session's progress stays visible in its own footer.
+function readPlanState(sessionId) {
     const now = Date.now();
+    if (sessionId !== planCache.sessionId) {
+        planCache = { checkedAt: 0, mtimeMs: 0, sessionId, state: null };
+    }
     if (now - planCache.checkedAt < PLAN_CACHE_TTL_MS) {
         return planCache.state;
     }
     planCache.checkedAt = now;
-    const path = join(getAgentDir(), "tasks.json");
+    const path = sessionId
+        ? join(getAgentDir(), "plans", `${sessionId}.json`)
+        : join(getAgentDir(), "tasks.json");
     try {
         const { mtimeMs } = statSync(path);
         if (mtimeMs === planCache.mtimeMs) {
@@ -41,8 +48,8 @@ function readPlanState() {
     return planCache.state;
 }
 
-function formatPlanStrip(width) {
-    const state = readPlanState();
+function formatPlanStrip(width, sessionId) {
+    const state = readPlanState(sessionId);
     const tasks = state?.tasks;
     if (!tasks || tasks.length === 0) {
         return null;
@@ -68,7 +75,7 @@ function formatPlanStrip(width) {
         parts.push(theme.fg("dim", "now: ") + theme.fg("accent", sanitizeStatusText(current.title)));
     }
     else if (done === tasks.length) {
-        parts.push(theme.fg("success", "complete"));
+        parts.push(theme.bold(theme.fg("success", "complete")));
     }
     return truncateToWidth(parts.join(theme.fg("dim", " · ")), width, theme.fg("dim", "..."));
 }
@@ -218,7 +225,7 @@ export class FooterComponent {
         if (areExperimentalFeaturesEnabled()) {
             statsParts.push(`${theme.fg("accent", "xp")}`);
         }
-        let statsLeft = `${theme.fg("accent", "operator")}`;
+        let statsLeft = `${theme.fg("text", "operator")}`;
         // Add model name on the right side, plus thinking level if model supports it
         let modelName = state.model?.name || state.model?.id || "no-model";
         let statsLeftWidth = visibleWidth(statsLeft);
@@ -275,7 +282,7 @@ export class FooterComponent {
         const dimRemainder = theme.fg("dim", remainder);
         const pwdLine = truncateToWidth(theme.fg("dim", pwd), width, theme.fg("dim", "..."));
         const lines = [dimStatsLeft + dimRemainder, pwdLine];
-        const planLine = formatPlanStrip(width);
+        const planLine = formatPlanStrip(width, this.session?.sessionManager?.getSessionId?.() ?? "");
         if (planLine) {
             lines.push(planLine);
         }

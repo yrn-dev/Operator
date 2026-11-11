@@ -1,5 +1,5 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
 import { getAgentDir } from "../../config.js";
@@ -22,8 +22,20 @@ const taskUpdateSchema = Type.Object({
 }, { additionalProperties: false });
 const taskListSchema = Type.Object({}, { additionalProperties: false });
 const VALID_STATUSES = new Set(["pending", "doing", "done", "blocked", "skipped"]);
-function getTasksPath() {
-    return join(getAgentDir(), "tasks.json");
+function resolveSessionId(options) {
+    const value = typeof options?.getSessionId === "function" ? options.getSessionId() : options?.sessionId;
+    if (typeof value !== "string" || value.length === 0) {
+        return "";
+    }
+    // The path is built from the session id; keep it filesystem-safe even if a
+    // future caller passes something unexpected.
+    const safe = value.replace(/[^a-zA-Z0-9._-]/g, "");
+    return safe && safe !== "." && safe !== ".." ? safe : "";
+}
+function getTasksPath(sessionId) {
+    return sessionId
+        ? join(getAgentDir(), "plans", `${sessionId}.json`)
+        : join(getAgentDir(), "tasks.json");
 }
 async function ensureAgentDir() {
     await mkdir(getAgentDir(), { recursive: true });
@@ -56,9 +68,9 @@ function parseTasksState(raw) {
         return { error: err };
     }
 }
-async function loadTasks() {
+async function loadTasks(sessionId) {
     await ensureAgentDir();
-    const path = getTasksPath();
+    const path = getTasksPath(sessionId);
     let raw;
     try {
         raw = await readFile(path, "utf-8");
@@ -72,7 +84,7 @@ async function loadTasks() {
     const { state, repaired, error } = parseTasksState(raw);
     if (state && typeof state === "object" && Array.isArray(state.tasks)) {
         if (repaired) {
-            await saveTasks(state).catch(() => { });
+            await saveTasks(state, sessionId).catch(() => { });
         }
         return state;
     }
@@ -82,11 +94,12 @@ async function loadTasks() {
     await rename(path, backup).catch(() => { });
     return { tasks: [], recoveredFrom: backup, recoveryError: error?.message };
 }
-async function saveTasks(tasksState) {
-    await ensureAgentDir();
-    const path = getTasksPath();
+async function saveTasks(tasksState, sessionId) {
+    const path = getTasksPath(sessionId);
+    await mkdir(dirname(path), { recursive: true });
     const payload = {
         ...tasksState,
+        ...(sessionId ? { sessionId } : {}),
         updatedAt: new Date().toISOString(),
     };
     // Write-then-rename: a reader sees either the old file or the new one, never a
@@ -124,7 +137,7 @@ function formatPlan(state) {
     }
     return lines.join("\n");
 }
-export function createTaskPlanToolDefinition(_cwd, _options) {
+export function createTaskPlanToolDefinition(_cwd, options) {
     return {
         name: "task_plan",
         label: "task_plan",
@@ -138,6 +151,7 @@ export function createTaskPlanToolDefinition(_cwd, _options) {
         parameters: taskPlanSchema,
         async execute(_toolCallId, input, _signal, _onUpdate, _ctx) {
             return withTasksLock(async () => {
+            const sessionId = resolveSessionId(options);
             const { goal, tasks } = input;
             const planTasks = tasks.map((title, idx) => ({
                 id: makeTaskId(idx),
@@ -146,7 +160,7 @@ export function createTaskPlanToolDefinition(_cwd, _options) {
                 createdAt: new Date().toISOString(),
             }));
             const state = { goal, tasks: planTasks };
-            await saveTasks(state);
+            await saveTasks(state, sessionId);
             return {
                 content: [
                     { type: "text", text: `Plan created with ${planTasks.length} task(s).\n\n${formatPlan(state)}` },
@@ -169,7 +183,7 @@ export function createTaskPlanToolDefinition(_cwd, _options) {
         },
     };
 }
-export function createTaskUpdateToolDefinition(_cwd, _options) {
+export function createTaskUpdateToolDefinition(_cwd, options) {
     return {
         name: "task_update",
         label: "task_update",
@@ -183,11 +197,12 @@ export function createTaskUpdateToolDefinition(_cwd, _options) {
         parameters: taskUpdateSchema,
         async execute(_toolCallId, input, _signal, _onUpdate, _ctx) {
             return withTasksLock(async () => {
+            const sessionId = resolveSessionId(options);
             const { id, index, status } = input;
             if (!VALID_STATUSES.has(status)) {
                 throw new Error(`Invalid status: ${status}. Allowed: ${[...VALID_STATUSES].join(", ")}`);
             }
-            const state = await loadTasks();
+            const state = await loadTasks(sessionId);
             if (!Array.isArray(state.tasks) || state.tasks.length === 0) {
                 throw new Error("No active plan. Create one with task_plan first.");
             }
@@ -210,7 +225,7 @@ export function createTaskUpdateToolDefinition(_cwd, _options) {
             }
             task.status = status;
             task.updatedAt = new Date().toISOString();
-            await saveTasks(state);
+            await saveTasks(state, sessionId);
             return {
                 content: [
                     { type: "text", text: `Updated task ${task.id} to '${status}'.\n\n${formatPlan(state)}` },
@@ -236,7 +251,7 @@ export function createTaskUpdateToolDefinition(_cwd, _options) {
         },
     };
 }
-export function createTaskListToolDefinition(_cwd, _options) {
+export function createTaskListToolDefinition(_cwd, options) {
     return {
         name: "task_list",
         label: "task_list",
@@ -248,7 +263,7 @@ export function createTaskListToolDefinition(_cwd, _options) {
         ],
         parameters: taskListSchema,
         async execute(_toolCallId, _input, _signal, _onUpdate, _ctx) {
-            const state = await loadTasks();
+            const state = await loadTasks(resolveSessionId(options));
             return {
                 content: [
                     { type: "text", text: formatPlan(state) },
