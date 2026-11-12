@@ -5,7 +5,7 @@
  * Uses file locking to prevent race conditions when multiple operator instances
  * try to refresh tokens simultaneously.
  */
-import { type OAuthCredentials, type OAuthLoginCallbacks, type OAuthProviderId } from "@yernur/operator-ai/compat";
+import { type OAuthCredentials, type OAuthLoginCallbacks, type OAuthProviderId } from "@earendil-works/pi-ai/compat";
 export type ApiKeyCredential = {
     type: "api_key";
     key: string;
@@ -134,7 +134,7 @@ export declare class AuthStorage {
     /**
      * Get all registered OAuth providers
      */
-    getOAuthProviders(): import("@yernur/operator-ai/compat").OAuthProviderInterface[];
+    getOAuthProviders(): import("@earendil-works/pi-ai/compat").OAuthProviderInterface[];
 }
 export {};
 //# sourceMappingURL=auth-storage.d.ts.map

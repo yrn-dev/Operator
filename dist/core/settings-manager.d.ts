@@ -1,4 +1,4 @@
-import type { Transport } from "@yernur/operator-ai";
+import type { Transport } from "@earendil-works/pi-ai";
 export interface CompactionSettings {
     enabled?: boolean;
     reserveTokens?: number;
@@ -76,6 +76,7 @@ export interface Settings {
     collapseChangelog?: boolean;
     enableInstallTelemetry?: boolean;
     enableAnalytics?: boolean;
+    enableSorting?: boolean;
     trackingId?: string;
     packages?: PackageSource[];
     extensions?: string[];
@@ -234,9 +235,11 @@ export declare class SettingsManager {
     getEnableInstallTelemetry(): boolean;
     setEnableInstallTelemetry(enabled: boolean): void;
     getEnableAnalytics(): boolean;
+    getEnableSorting(): boolean;
     getTrackingId(): string | undefined;
     /** Set the analytics opt-in preference; generates a tracking identifier on first opt-in */
     setEnableAnalytics(enabled: boolean): void;
+    setEnableSorting(enabled: boolean): void;
     getPackages(): PackageSource[];
     setPackages(packages: PackageSource[]): void;
     setProjectPackages(packages: PackageSource[]): void;

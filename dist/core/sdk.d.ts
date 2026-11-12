@@ -1,5 +1,5 @@
-import { type ThinkingLevel } from "@yernur/operator-agent-core";
-import { type Model } from "@yernur/operator-ai/compat";
+import { type ThinkingLevel } from "@earendil-works/pi-agent-core";
+import { type Model } from "@earendil-works/pi-ai/compat";
 import { AgentSession } from "./agent-session.ts";
 import { AuthStorage } from "./auth-storage.ts";
 import type { LoadExtensionsResult, SessionStartEvent, ToolDefinition } from "./extensions/index.ts";
@@ -79,7 +79,7 @@ export { withFileMutationQueue, createCodingTools, createReadOnlyTools, createRe
  * const { session } = await createAgentSession();
  *
  * // With explicit model
- * import { getModel } from '@yernur/operator-ai';
+ * import { getModel } from '@earendil-works/pi-ai';
  * const { session } = await createAgentSession({
  *   model: getModel('anthropic', 'claude-opus-4-5'),
  *   thinkingLevel: 'high',

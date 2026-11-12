@@ -1,4 +1,4 @@
-import { Box, type MarkdownTheme } from "@yernur/operator-tui";
+import { Box, type MarkdownTheme } from "@earendil-works/pi-tui";
 import type { BranchSummaryMessage } from "../../../core/messages.ts";
 /**
  * Component that renders a branch summary message with collapsed/expanded state.

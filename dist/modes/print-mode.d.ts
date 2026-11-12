@@ -5,7 +5,7 @@
  * - `operator -p "prompt"` - text output
  * - `operator --mode json "prompt"` - JSON event stream
  */
-import type { ImageContent } from "@yernur/operator-ai";
+import type { ImageContent } from "@earendil-works/pi-ai";
 import type { AgentSessionRuntime } from "../core/agent-session-runtime.ts";
 /**
  * Options for print mode.

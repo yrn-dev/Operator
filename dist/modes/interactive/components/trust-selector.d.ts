@@ -1,4 +1,4 @@
-import { Container } from "@yernur/operator-tui";
+import { Container } from "@earendil-works/pi-tui";
 import { type ProjectTrustOption, type ProjectTrustStoreEntry } from "../../../core/trust-manager.ts";
 export type TrustSelection = Pick<ProjectTrustOption, "trusted" | "updates">;
 export interface TrustSelectorOptions {

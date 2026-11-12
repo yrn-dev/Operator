@@ -1,6 +1,6 @@
-import type { ThinkingLevel } from "@yernur/operator-agent-core";
-import type { Transport } from "@yernur/operator-ai";
-import { Container, SettingsList } from "@yernur/operator-tui";
+import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
+import type { Transport } from "@earendil-works/pi-ai";
+import { Container, SettingsList } from "@earendil-works/pi-tui";
 import type { DefaultProjectTrust, WarningSettings } from "../../../core/settings-manager.ts";
 import { type TerminalTheme } from "../theme/theme.ts";
 export interface SettingsConfig {

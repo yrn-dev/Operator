@@ -1,5 +1,5 @@
-import type { ThinkingLevel } from "@yernur/operator-agent-core";
-import type { Model } from "@yernur/operator-ai";
+import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
+import type { Model } from "@earendil-works/pi-ai";
 import { AuthStorage } from "./auth-storage.ts";
 import type { SessionStartEvent, ToolDefinition } from "./extensions/index.ts";
 import { ModelRegistry } from "./model-registry.ts";

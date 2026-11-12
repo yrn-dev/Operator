@@ -1,7 +1,7 @@
 /**
  * Process @file CLI arguments into text content and image attachments
  */
-import type { ImageContent } from "@yernur/operator-ai";
+import type { ImageContent } from "@earendil-works/pi-ai";
 export interface ProcessedFiles {
     text: string;
     images: ImageContent[];

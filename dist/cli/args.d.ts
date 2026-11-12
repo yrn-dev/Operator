@@ -1,7 +1,7 @@
 /**
  * CLI argument parsing and help display
  */
-import type { ThinkingLevel } from "@yernur/operator-agent-core";
+import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
 import type { ExtensionFlag } from "../core/extensions/types.ts";
 export type Mode = "text" | "json" | "rpc";
 export interface Args {

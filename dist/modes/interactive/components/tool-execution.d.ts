@@ -1,4 +1,4 @@
-import { Container, type TUI } from "@yernur/operator-tui";
+import { Container, type TUI } from "@earendil-works/pi-tui";
 import type { ToolDefinition } from "../../../core/extensions/types.ts";
 export interface ToolExecutionOptions {
     showImages?: boolean;

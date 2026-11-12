@@ -7,9 +7,9 @@
  * - Register commands, keyboard shortcuts, and CLI flags
  * - Interact with the user via UI primitives
  */
-import type { AgentMessage, AgentToolResult, AgentToolUpdateCallback, ThinkingLevel, ToolExecutionMode } from "@yernur/operator-agent-core";
-import type { Api, AssistantMessageEvent, AssistantMessageEventStream, Context, ImageContent, Model, OAuthCredentials, OAuthLoginCallbacks, SimpleStreamOptions, TextContent, ToolResultMessage } from "@yernur/operator-ai";
-import type { AutocompleteItem, AutocompleteProvider, Component, EditorComponent, EditorTheme, KeyId, OverlayHandle, OverlayOptions, TUI } from "@yernur/operator-tui";
+import type { AgentMessage, AgentToolResult, AgentToolUpdateCallback, ThinkingLevel, ToolExecutionMode } from "@earendil-works/pi-agent-core";
+import type { Api, AssistantMessageEvent, AssistantMessageEventStream, Context, ImageContent, Model, OAuthCredentials, OAuthLoginCallbacks, SimpleStreamOptions, TextContent, ToolResultMessage } from "@earendil-works/pi-ai";
+import type { AutocompleteItem, AutocompleteProvider, Component, EditorComponent, EditorTheme, KeyId, OverlayHandle, OverlayOptions, TUI } from "@earendil-works/pi-tui";
 import type { Static, TSchema } from "typebox";
 import type { Theme } from "../../modes/interactive/theme/theme.ts";
 import type { BashResult } from "../bash-executor.ts";
@@ -143,12 +143,12 @@ export interface ExtensionUIContext {
      * - `keybindings`: KeybindingsManager for app-level keybindings
      *
      * For full app keybinding support (escape, ctrl+d, model switching, etc.),
-     * extend `CustomEditor` from `@yernur/operator-agent` and call
+     * extend `CustomEditor` from `pzero-operator` and call
      * `super.handleInput(data)` for keys you don't handle.
      *
      * @example
      * ```ts
-     * import { CustomEditor } from "@yernur/operator-agent";
+     * import { CustomEditor } from "pzero-operator";
      *
      * class VimEditor extends CustomEditor {
      *   private mode: "normal" | "insert" = "insert";

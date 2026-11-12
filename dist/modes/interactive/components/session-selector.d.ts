@@ -1,4 +1,4 @@
-import { type Component, Container, type Focusable } from "@yernur/operator-tui";
+import { type Component, Container, type Focusable } from "@earendil-works/pi-tui";
 import { KeybindingsManager } from "../../../core/keybindings.ts";
 import type { SessionInfo, SessionListProgress } from "../../../core/session-manager.ts";
 import { type NameFilter, type SortMode } from "./session-selector-search.ts";

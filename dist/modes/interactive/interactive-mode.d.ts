@@ -2,7 +2,7 @@
  * Interactive mode for the coding agent.
  * Handles TUI rendering and user interaction, delegating business logic to AgentSession.
  */
-import { type ImageContent } from "@yernur/operator-ai/compat";
+import { type ImageContent } from "@earendil-works/pi-ai/compat";
 import { type AgentSessionRuntime } from "../../core/agent-session-runtime.ts";
 import { SessionManager } from "../../core/session-manager.ts";
 import { type LatestOperatorRelease } from "../../utils/version-check.ts";

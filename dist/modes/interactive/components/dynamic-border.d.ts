@@ -1,4 +1,4 @@
-import type { Component } from "@yernur/operator-tui";
+import type { Component } from "@earendil-works/pi-tui";
 /**
  * Dynamic border component that adjusts to viewport width.
  *

@@ -1,5 +1,5 @@
-import type { AgentTool } from "@yernur/operator-agent-core";
-import { Box } from "@yernur/operator-tui";
+import type { AgentTool } from "@earendil-works/pi-agent-core";
+import { Box } from "@earendil-works/pi-tui";
 import { type Static, Type } from "typebox";
 import type { ToolDefinition } from "../extensions/types.ts";
 import { type EditDiffError, type EditDiffResult } from "./edit-diff.ts";

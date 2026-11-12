@@ -3,8 +3,8 @@
  *
  * Spawns the agent in RPC mode and provides a typed API for all operations.
  */
-import type { AgentEvent, AgentMessage, ThinkingLevel } from "@yernur/operator-agent-core";
-import type { ImageContent } from "@yernur/operator-ai";
+import type { AgentEvent, AgentMessage, ThinkingLevel } from "@earendil-works/pi-agent-core";
+import type { ImageContent } from "@earendil-works/pi-ai";
 import type { SessionStats } from "../../core/agent-session.ts";
 import type { BashResult } from "../../core/bash-executor.ts";
 import type { CompactionResult } from "../../core/compaction/index.ts";

@@ -4,8 +4,8 @@
  * Pure functions for compaction logic. The session manager handles I/O,
  * and after compaction the session is reloaded.
  */
-import type { AgentMessage, StreamFn, ThinkingLevel } from "@yernur/operator-agent-core";
-import type { Model, Usage } from "@yernur/operator-ai/compat";
+import type { AgentMessage, StreamFn, ThinkingLevel } from "@earendil-works/pi-agent-core";
+import type { Model, Usage } from "@earendil-works/pi-ai/compat";
 import { type SessionEntry } from "../session-manager.ts";
 import { type FileOperations } from "./utils.ts";
 /** Details stored in CompactionEntry.details for file tracking */

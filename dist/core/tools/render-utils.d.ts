@@ -1,4 +1,4 @@
-import type { ImageContent, TextContent } from "@yernur/operator-ai";
+import type { ImageContent, TextContent } from "@earendil-works/pi-ai";
 import type { Theme } from "../../modes/interactive/theme/theme.ts";
 export declare function shortenPath(path: unknown): string;
 export declare function linkPath(styledText: string, rawPath: string, cwd: string): string;

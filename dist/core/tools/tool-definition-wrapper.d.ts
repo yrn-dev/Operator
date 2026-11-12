@@ -1,4 +1,4 @@
-import type { AgentTool } from "@yernur/operator-agent-core";
+import type { AgentTool } from "@earendil-works/pi-agent-core";
 import type { ExtensionContext, ToolDefinition } from "../extensions/types.ts";
 /** Wrap a ToolDefinition into an AgentTool for the core runtime. */
 export declare function wrapToolDefinition<TDetails = unknown>(definition: ToolDefinition<any, TDetails>, ctxFactory?: () => ExtensionContext): AgentTool<any, TDetails>;

@@ -1,4 +1,4 @@
-import { type Component } from "@yernur/operator-tui";
+import { type Component } from "@earendil-works/pi-tui";
 import type { AgentSession } from "../../../core/agent-session.ts";
 import type { ReadonlyFooterDataProvider } from "../../../core/footer-data-provider.ts";
 export declare function formatCwdForFooter(cwd: string, home: string | undefined): string;

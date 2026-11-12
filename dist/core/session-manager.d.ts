@@ -1,5 +1,5 @@
-import { type AgentMessage } from "@yernur/operator-agent-core";
-import type { ImageContent, Message, TextContent } from "@yernur/operator-ai";
+import { type AgentMessage } from "@earendil-works/pi-agent-core";
+import type { ImageContent, Message, TextContent } from "@earendil-works/pi-ai";
 import { type BashExecutionMessage, type CustomMessage } from "./messages.ts";
 export declare const CURRENT_SESSION_VERSION = 3;
 export interface SessionHeader {

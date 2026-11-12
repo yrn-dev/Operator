@@ -7,7 +7,7 @@ export { createLsTool, createLsToolDefinition, type LsOperations, type LsToolDet
 export { createReadTool, createReadToolDefinition, type ReadOperations, type ReadToolDetails, type ReadToolInput, type ReadToolOptions, } from "./read.ts";
 export { DEFAULT_MAX_BYTES, DEFAULT_MAX_LINES, formatSize, type TruncationOptions, type TruncationResult, truncateHead, truncateLine, truncateTail, } from "./truncate.ts";
 export { createWriteTool, createWriteToolDefinition, type WriteOperations, type WriteToolInput, type WriteToolOptions, } from "./write.ts";
-import type { AgentTool } from "@yernur/operator-agent-core";
+import type { AgentTool } from "@earendil-works/pi-agent-core";
 import type { ToolDefinition } from "../extensions/types.ts";
 import { type BashToolOptions } from "./bash.ts";
 import { type EditToolOptions } from "./edit.ts";

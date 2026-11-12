@@ -1,5 +1,5 @@
-import { type Model } from "@yernur/operator-ai";
-import { Container, type Focusable, Input, type TUI } from "@yernur/operator-tui";
+import { type Model } from "@earendil-works/pi-ai";
+import { Container, type Focusable, Input, type TUI } from "@earendil-works/pi-tui";
 import type { ModelRegistry } from "../../../core/model-registry.ts";
 import type { SettingsManager } from "../../../core/settings-manager.ts";
 interface ScopedModelItem {
