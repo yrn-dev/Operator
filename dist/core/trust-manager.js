@@ -76,15 +76,15 @@ function readTrustFile(path) {
     }
     catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        throw new Error(`Failed to read trust store ${path}: ${message}`);
+        throw new Error(`Failed to parse trust store at ${path}: ${message}`);
     }
     if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-        throw new Error(`Invalid trust store ${path}: expected an object`);
+        throw new Error(`Invalid trust store at ${path}: expected an object, but got ${Array.isArray(parsed) ? 'an array' : parsed === null ? 'null' : typeof parsed}`);
     }
     const data = {};
     for (const [key, value] of Object.entries(parsed)) {
         if (value !== true && value !== false && value !== null) {
-            throw new Error(`Invalid trust store ${path}: value for ${JSON.stringify(key)} must be true, false, or null`);
+            throw new Error(`Invalid trust store at ${path}: value for key ${JSON.stringify(key)} must be true, false, or null, but got ${JSON.stringify(value)}`);
         }
         data[key] = value;
     }
@@ -98,8 +98,12 @@ function writeTrustFile(path, data) {
             sorted[key] = value;
         }
     }
-    mkdirSync(dirname(path), { recursive: true });
-    writeFileSync(path, `${JSON.stringify(sorted, null, 2)}\n`, "utf-8");
+    try {
+        mkdirSync(dirname(path), { recursive: true });
+        writeFileSync(path, `${JSON.stringify(sorted, null, 2)}\n`, "utf-8");
+    } catch (error) {
+        throw new Error(`Failed to write trust store at ${path}: ${error instanceof Error ? error.message : String(error)}`);
+    }
 }
 function acquireTrustLockSync(path) {
     const trustDir = dirname(path);
@@ -128,7 +132,7 @@ function acquireTrustLockSync(path) {
     if (lastError instanceof Error) {
         throw lastError;
     }
-    throw new Error("Failed to acquire trust store lock");
+    throw new Error(`Failed to acquire trust store lock for ${path}`);
 }
 function withTrustFileLock(path, fn) {
     const release = acquireTrustLockSync(path);
